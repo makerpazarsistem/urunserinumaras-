@@ -1,0 +1,1824 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>Müşteri Sipariş Takip Sistemi - Firebase</title>
+    
+    <!-- Firebase SDK'ları -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- QR/Barkod Kütüphanesi -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+        }
+        body {
+            background: #f4f7fc;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            max-width: 1100px;
+            width: 100%;
+            background: white;
+            padding: 25px 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1e2a47;
+            border-left: 6px solid #2a7de1;
+            padding-left: 15px;
+            margin-top: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .sync-status {
+            background: #28a745;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .sync-status.offline {
+            background: #dc3545;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px 25px;
+            background: #f9faff;
+            padding: 20px;
+            border-radius: 16px;
+            margin: 20px 0;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #1e2a47;
+            margin-bottom: 4px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 10px 12px;
+            border: 1px solid #d0d9e8;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            transition: 0.2s;
+            background: white;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: #2a7de1;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(42,125,225,0.15);
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .btn {
+            background: #2a7de1;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+            width: fit-content;
+            min-width: 130px;
+        }
+        .btn:hover {
+            background: #1a5bb5;
+            transform: scale(1.02);
+        }
+        .btn-danger {
+            background: #d9534f;
+        }
+        .btn-danger:hover {
+            background: #b52b27;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        .btn-warning {
+            background: #f0ad4e;
+            color: #1e2a47;
+        }
+        .btn-warning:hover {
+            background: #d98c2e;
+        }
+        .btn-scan {
+            background: #8b5cf6;
+            color: white;
+        }
+        .btn-scan:hover {
+            background: #7c3aed;
+        }
+        
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            margin: 15px 0 5px;
+        }
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 16px;
+            border-radius: 40px;
+            border: 1px solid #d0d9e8;
+            font-size: 1rem;
+        }
+        .search-box:focus {
+            border-color: #2a7de1;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(42,125,225,0.15);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+        th {
+            background: #1e2a47;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            white-space: nowrap;
+        }
+        td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: middle;
+        }
+        tr:hover td {
+            background: #f4f9ff;
+        }
+        .badge {
+            background: #e9ecf3;
+            padding: 3px 10px;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #1e2a47;
+            display: inline-block;
+            margin: 1px 2px;
+        }
+        .badge-seri {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+        .badge-tarih {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        .seri-list {
+            max-width: 200px;
+        }
+        .actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .actions button {
+            border: none;
+            padding: 5px 12px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .btn-edit {
+            background: #ffc107;
+            color: #1e2a47;
+        }
+        .btn-edit:hover {
+            background: #e0a800;
+        }
+        .btn-del {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-del:hover {
+            background: #b02a37;
+        }
+        .empty-row td {
+            text-align: center;
+            color: #6c7a92;
+            padding: 30px 0;
+        }
+        
+        /* ÜRÜN MENÜSÜ */
+        .urun-menu-container {
+            grid-column: 1 / -1;
+            background: #f8faff;
+            border-radius: 16px;
+            border: 2px solid #e8edf5;
+            overflow: hidden;
+            margin: 5px 0 10px 0;
+        }
+        .urun-menu-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: #eef2f7;
+            border-bottom: 2px solid #dce3ed;
+            cursor: pointer;
+            user-select: none;
+        }
+        .urun-menu-header:hover {
+            background: #e8edf5;
+        }
+        .urun-menu-header h3 {
+            margin: 0;
+            color: #1e2a47;
+            font-size: 0.95rem;
+        }
+        .urun-menu-header .urun-count {
+            background: #1e2a47;
+            color: white;
+            padding: 2px 12px;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .urun-menu-header .arrow {
+            transition: 0.3s;
+            font-size: 1.2rem;
+            color: #6c7a92;
+        }
+        .urun-menu-header .arrow.open {
+            transform: rotate(180deg);
+        }
+        
+        .urun-menu-body {
+            padding: 12px 16px;
+            background: white;
+            display: none;
+        }
+        .urun-menu-body.open {
+            display: block;
+        }
+        
+        .urun-ekle-alani {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .urun-ekle-alani input {
+            flex: 1;
+            min-width: 120px;
+            padding: 6px 12px;
+            border: 1px solid #d0d9e8;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        .urun-ekle-alani input:focus {
+            border-color: #2a7de1;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(42,125,225,0.15);
+        }
+        .urun-ekle-alani .btn-urun-ekle {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: 0.2s;
+            background: #28a745;
+            color: white;
+        }
+        .urun-ekle-alani .btn-urun-ekle:hover {
+            background: #1e7e34;
+        }
+        .urun-ekle-alani .btn-sync {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: 0.2s;
+            background: #2a7de1;
+            color: white;
+        }
+        .urun-ekle-alani .btn-sync:hover {
+            background: #1a5bb5;
+        }
+        .urun-ekle-alani .btn-sync:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .urun-ekle-alani .btn-reset {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: 0.2s;
+            background: #dc3545;
+            color: white;
+        }
+        .urun-ekle-alani .btn-reset:hover {
+            background: #b02a37;
+        }
+        
+        .urun-listesi {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+        .urun-listesi::-webkit-scrollbar {
+            width: 4px;
+        }
+        .urun-listesi::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .urun-listesi::-webkit-scrollbar-thumb {
+            background: #c1c9d6;
+            border-radius: 4px;
+        }
+        .urun-listesi::-webkit-scrollbar-thumb:hover {
+            background: #a8b2c2;
+        }
+        
+        .urun-item {
+            background: #f3f4f6;
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: 0.2s;
+            border: 2px solid transparent;
+            color: #1e2a47;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .urun-item:hover {
+            background: #dbeafe;
+            border-color: #93c5fd;
+        }
+        .urun-item .urun-ekle-btn {
+            background: none;
+            border: none;
+            color: #3b82f6;
+            cursor: pointer;
+            font-size: 0.7rem;
+            padding: 0 2px;
+        }
+        .urun-item .urun-ekle-btn:hover {
+            color: #1d4ed8;
+        }
+        .urun-item .urun-sil-btn {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 0.7rem;
+            padding: 0 2px;
+        }
+        .urun-item .urun-sil-btn:hover {
+            color: #b02a37;
+        }
+        
+        /* OTOMATİK TAMAMLAMA */
+        .input-wrapper {
+            position: relative;
+            flex: 1;
+            min-width: 150px;
+        }
+        .autocomplete-list {
+            position: absolute;
+            background: white;
+            border: 2px solid #dbeafe;
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            width: 100%;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            top: 100%;
+            left: 0;
+            margin-top: 2px;
+        }
+        .autocomplete-list.active {
+            display: block;
+        }
+        .autocomplete-list .autocomplete-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: 0.15s;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .autocomplete-list .autocomplete-item:hover {
+            background: #f0f4ff;
+        }
+        .autocomplete-list .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        
+        /* SERİ PANELİ */
+        .seri-panel {
+            background: #f0f4ff;
+            border: 2px solid #dbeafe;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 10px 0;
+            grid-column: 1 / -1;
+        }
+        .seri-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .seri-panel-header h3 {
+            margin: 0;
+            color: #1e2a47;
+            font-size: 1.1rem;
+        }
+        
+        .seri-input-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .seri-input-group .input-wrapper {
+            flex: 2;
+            min-width: 200px;
+        }
+        .seri-input-group .input-wrapper input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #d0d9e8;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            transition: 0.2s;
+            background: white;
+        }
+        .seri-input-group .input-wrapper input:focus {
+            border-color: #2a7de1;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(42,125,225,0.15);
+        }
+        .seri-input-group .btn {
+            min-width: auto;
+            padding: 10px 20px;
+        }
+        
+        .seri-info {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: #6c7a92;
+        }
+        
+        /* SCAN MODAL */
+        .scan-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .scan-modal.active {
+            display: flex;
+        }
+        .scan-modal-content {
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 95%;
+            max-height: 95vh;
+            overflow-y: auto;
+        }
+        .scan-modal-content .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            color: white;
+        }
+        .scan-modal-content .header h3 {
+            margin: 0;
+            color: white;
+            font-size: 1rem;
+        }
+        .scan-modal-content .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #9ca3af;
+        }
+        .scan-modal-content .close-btn:hover {
+            color: #dc3545;
+        }
+        
+        .scan-methods {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .scan-methods button {
+            flex: 1;
+            min-width: 70px;
+            padding: 8px 12px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+        .scan-methods button:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.2);
+        }
+        .scan-methods button.active {
+            border-color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.2);
+        }
+        
+        #scanner-container {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            min-height: 300px;
+            position: relative;
+        }
+        #scanner-container video {
+            border-radius: 12px;
+            width: 100%;
+        }
+        
+        .scan-status {
+            text-align: center;
+            padding: 8px 12px;
+            margin-top: 10px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            color: #9ca3af;
+            background: rgba(255,255,255,0.05);
+        }
+        .scan-status.loading {
+            background: rgba(254, 243, 199, 0.15);
+            color: #fcd34d;
+        }
+        .scan-status.success {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+        }
+        .scan-status.error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-top: 2px solid #8b5cf6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .scan-result {
+            margin-top: 12px;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            display: none;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+        .scan-result.active {
+            display: block;
+        }
+        .scan-result .result-label {
+            font-size: 0.7rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .scan-result .result-text {
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            word-break: break-all;
+            padding: 8px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+        }
+        .scan-result .result-edit {
+            margin-top: 6px;
+            display: flex;
+            gap: 6px;
+        }
+        .scan-result .result-edit input {
+            flex: 1;
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 2px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.3);
+            color: white;
+            font-size: 0.9rem;
+            font-family: 'Courier New', monospace;
+        }
+        .scan-result .result-edit input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+        }
+        .scan-result .result-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .scan-result .result-actions button {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.85rem;
+        }
+        .scan-result .result-actions .btn-use {
+            background: #00ff64;
+            color: #1a1a2e;
+            flex: 1;
+        }
+        .scan-result .result-actions .btn-use:hover {
+            background: #00e05a;
+        }
+        .scan-result .result-actions .btn-retry {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        .scan-result .result-actions .btn-retry:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        #editIndex {
+            display: none;
+        }
+        .bilgi {
+            background: #d1ecf1;
+            padding: 8px 16px;
+            border-radius: 40px;
+            color: #0c5460;
+            font-size: 0.9rem;
+        }
+        .sync-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 30px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+        .sync-badge.synced {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .sync-badge.syncing {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .sync-badge.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        @media (max-width: 700px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .container {
+                padding: 15px;
+            }
+            h1 {
+                font-size: 1.1rem;
+            }
+            .sync-status {
+                font-size: 0.65rem;
+                padding: 4px 10px;
+            }
+            .btn {
+                width: 100%;
+                justify-content: center;
+                min-height: 44px;
+            }
+            .seri-input-group {
+                flex-direction: column;
+            }
+            .seri-input-group .input-wrapper {
+                width: 100%;
+                min-width: unset;
+            }
+            .seri-input-group .btn {
+                width: 100%;
+            }
+            .urun-ekle-alani {
+                flex-direction: column;
+            }
+            .urun-ekle-alani input {
+                width: 100%;
+            }
+            .urun-ekle-alani button {
+                width: 100%;
+            }
+            .flex-row {
+                gap: 8px;
+            }
+            .search-box {
+                width: 100%;
+                min-width: unset;
+            }
+            .scan-modal-content {
+                padding: 12px;
+                width: 98%;
+            }
+            .scan-methods button {
+                font-size: 0.65rem;
+                padding: 6px 8px;
+                min-width: 50px;
+            }
+            table {
+                font-size: 0.75rem;
+            }
+            th, td {
+                padding: 8px 4px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+            h1 {
+                font-size: 0.95rem;
+            }
+            .form-grid {
+                padding: 10px;
+                gap: 8px;
+            }
+            th, td {
+                padding: 6px 3px;
+                font-size: 0.65rem;
+            }
+            .badge {
+                font-size: 0.55rem;
+                padding: 2px 6px;
+            }
+            .actions button {
+                font-size: 0.6rem;
+                padding: 3px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>
+        <span>📦 Sipariş Takip</span>
+        <span class="sync-status" id="syncStatus">🟢 Bağlandı</span>
+    </h1>
+
+    <!-- ANA FORM -->
+    <div class="form-grid" id="formGrid">
+        <div class="form-group">
+            <label>Müşteri Adı *</label>
+            <input type="text" id="musteriAdi" placeholder="Ahmet Yılmaz" />
+        </div>
+        <div class="form-group">
+            <label>Sipariş No *</label>
+            <input type="text" id="siparisNo" placeholder="SP-2026-001" />
+        </div>
+        <div class="form-group">
+            <label>Platform</label>
+            <select id="platform">
+                <option value="Makerpazar.com">Makerpazar.com</option>
+                <option value="hepsiburada">hepsiburada</option>
+                <option value="pazarama">pazarama</option>
+                <option value="Mağza">Mağza</option>
+                <option value="Trendyol">Trendyol</option>
+                <option value="n11">n11</option>
+                <option value="Amazon">Amazon</option>
+                <option value="idefix">idefix</option>
+                <option value="Diğer">Diğer</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Ürün Adı</label>
+            <div class="input-wrapper">
+                <input type="text" id="urunAdi" placeholder="Ürün adını yazın, öneriler çıkacak..." autocomplete="off" />
+                <div class="autocomplete-list" id="urunAutocompleteList"></div>
+            </div>
+        </div>
+        
+        <!-- ÜRÜN MENÜSÜ -->
+        <div class="urun-menu-container">
+            <div class="urun-menu-header" id="menuToggle">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <h3>📋 Ürün Listesi</h3>
+                    <span class="urun-count" id="urunCount">0 ürün</span>
+                    <span class="sync-badge synced" id="urunSyncBadge">✅ Senkron</span>
+                </div>
+                <span class="arrow" id="menuArrow">▼</span>
+            </div>
+            <div class="urun-menu-body" id="menuBody">
+                <div class="urun-ekle-alani">
+                    <input type="text" id="yeniUrunAdi" placeholder="Yeni ürün adı..." />
+                    <button class="btn-urun-ekle" id="urunEkleBtn">➕ Ekle</button>
+                    <button class="btn-sync" id="syncBtn">🔄 Senkron</button>
+                    <button class="btn-reset" id="resetBtn">🗑️ Sıfırla</button>
+                </div>
+                <div class="urun-listesi" id="urunListesi">
+                    <span style="color:#9ca3af; font-size:0.85rem;">Henüz ürün eklenmemiş</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SERİ NUMARASI -->
+        <div class="seri-panel">
+            <div class="seri-panel-header">
+                <h3>🔢 Seri Numarası</h3>
+            </div>
+            
+            <div class="seri-input-group">
+                <div class="input-wrapper">
+                    <input type="text" id="seriInput" placeholder="Seri numarasını girin veya barkod/QR okutun..." autocomplete="off" />
+                    <div class="autocomplete-list" id="seriAutocompleteList"></div>
+                </div>
+                <button class="btn btn-scan" id="scanBtn">📷 Barkod / QR</button>
+            </div>
+            
+            <div class="seri-info">
+                💡 Her ürüne sadece 1 seri numarası eklenebilir.
+            </div>
+        </div>
+        
+        <div class="form-group full-width">
+            <label>Tarih</label>
+            <input type="datetime-local" id="tarih" />
+        </div>
+        
+        <div class="form-group full-width">
+            <label>Not</label>
+            <textarea id="not" rows="2" placeholder="Ek notlar..."></textarea>
+        </div>
+        <div class="form-group full-width" style="flex-direction:row; gap:12px; align-items:center; flex-wrap:wrap;">
+            <button class="btn" id="kaydetBtn">💾 Kaydet</button>
+            <button class="btn btn-warning" id="vazgecBtn" style="display:none;">↩️ Vazgeç</button>
+            <span id="editIndex" style="background:#f0ad4e; padding:4px 14px; border-radius:40px; font-weight:600;">Düzenleniyor...</span>
+        </div>
+    </div>
+
+    <!-- ARAMA -->
+    <div class="flex-row">
+        <input type="text" class="search-box" id="aramaInput" placeholder="🔍 Müşteri, Sipariş No veya Ürün ile ara..." />
+        <button class="btn btn-success" id="temizleBtn" style="background:#6c7a92;">Temizle</button>
+        <span class="bilgi" id="kayitSayisi">Toplam: 0 kayıt</span>
+        <button class="btn btn-danger" id="yenileBtn" style="background:#17a2b8; min-width:auto; padding:10px 20px;">🔄 Yenile</button>
+    </div>
+
+    <!-- TABLO -->
+    <div style="overflow-x:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Müşteri</th>
+                    <th>Sipariş No</th>
+                    <th>Platform</th>
+                    <th>Ürün</th>
+                    <th>Seri No</th>
+                    <th>Tarih</th>
+                    <th>Not</th>
+                    <th style="min-width:90px;">İşlem</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr class="empty-row"><td colspan="8">Yükleniyor...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- SCAN MODAL -->
+<div class="scan-modal" id="scanModal">
+    <div class="scan-modal-content">
+        <div class="header">
+            <h3>📷 Barkod / QR Okuyucu</h3>
+            <button class="close-btn" id="scanCloseBtn">&times;</button>
+        </div>
+        
+        <div class="scan-methods">
+            <button id="methodAuto" class="active">🔄 Otomatik</button>
+            <button id="methodQR">📱 QR</button>
+            <button id="methodBarcode">📊 Barkod</button>
+        </div>
+        
+        <div id="scanner-container"></div>
+        
+        <div class="scan-status" id="scanStatus">📱 Barkod veya QR kodu kameraya gösterin...</div>
+        
+        <div class="scan-result" id="scanResult">
+            <div class="result-label">📝 OKUNAN DEĞER</div>
+            <div class="result-text" id="scanResultText"></div>
+            <div class="result-edit">
+                <input type="text" id="scanResultEdit" placeholder="Yanlışsa düzeltin..." />
+            </div>
+            <div class="result-actions">
+                <button class="btn-use" id="scanUseBtn">✅ Kullan</button>
+                <button class="btn-retry" id="scanRetryBtn">🔄 Tekrar Dene</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ============================================
+    // FIREBASE KONFIGÜRASYONU
+    // ============================================
+    const firebaseConfig = {
+  apiKey: "AIzaSyAqW9K9vNfo8PnXy1CzbVwvdWy16TSZ7CY",
+  authDomain: "urunserinumarasi.firebaseapp.com",
+  databaseURL: "https://urunserinumarasi-default-rtdb.firebaseio.com",
+  projectId: "urunserinumarasi",
+  storageBucket: "urunserinumarasi.firebasestorage.app",
+  messagingSenderId: "562213524738",
+  appId: "1:562213524738:web:5c3a8825d61ed2dc925e1b"
+};
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // ============================================
+    // UYGULAMA
+    // ============================================
+    let siparisler = [];
+    let editMode = false;
+    let editKey = null;
+    let html5Scanner = null;
+    let isScanning = false;
+    let currentMethod = 'auto';
+    let urunler = [];
+    let isSyncing = false;
+    let isFirstLoad = true;
+
+    // DOM
+    const musteriAdi = document.getElementById('musteriAdi');
+    const siparisNo = document.getElementById('siparisNo');
+    const platform = document.getElementById('platform');
+    const urunAdi = document.getElementById('urunAdi');
+    const not = document.getElementById('not');
+    const tarih = document.getElementById('tarih');
+    const seriInput = document.getElementById('seriInput');
+    const kaydetBtn = document.getElementById('kaydetBtn');
+    const vazgecBtn = document.getElementById('vazgecBtn');
+    const editIndexSpan = document.getElementById('editIndex');
+    const aramaInput = document.getElementById('aramaInput');
+    const temizleBtn = document.getElementById('temizleBtn');
+    const yenileBtn = document.getElementById('yenileBtn');
+    const tableBody = document.getElementById('tableBody');
+    const kayitSayisi = document.getElementById('kayitSayisi');
+    const syncStatus = document.getElementById('syncStatus');
+    
+    // Ürün Menüsü
+    const menuToggle = document.getElementById('menuToggle');
+    const menuBody = document.getElementById('menuBody');
+    const menuArrow = document.getElementById('menuArrow');
+    const urunListesi = document.getElementById('urunListesi');
+    const urunCount = document.getElementById('urunCount');
+    const urunSyncBadge = document.getElementById('urunSyncBadge');
+    const yeniUrunAdi = document.getElementById('yeniUrunAdi');
+    const urunEkleBtn = document.getElementById('urunEkleBtn');
+    const syncBtn = document.getElementById('syncBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const urunAutocompleteList = document.getElementById('urunAutocompleteList');
+    const seriAutocompleteList = document.getElementById('seriAutocompleteList');
+    
+    // Scan Elementleri
+    const scanModal = document.getElementById('scanModal');
+    const scanCloseBtn = document.getElementById('scanCloseBtn');
+    const scanStatus = document.getElementById('scanStatus');
+    const scanBtn = document.getElementById('scanBtn');
+    const scanResult = document.getElementById('scanResult');
+    const scanResultText = document.getElementById('scanResultText');
+    const scanResultEdit = document.getElementById('scanResultEdit');
+    const scanUseBtn = document.getElementById('scanUseBtn');
+    const scanRetryBtn = document.getElementById('scanRetryBtn');
+    const scannerContainer = document.getElementById('scanner-container');
+    const methodAuto = document.getElementById('methodAuto');
+    const methodQR = document.getElementById('methodQR');
+    const methodBarcode = document.getElementById('methodBarcode');
+
+    let lastScanResult = '';
+    let urunRef = null;
+
+    // ============================================
+    // YARDIMCI FONKSİYONLAR
+    // ============================================
+    function formatDateForDisplay(dateStr) {
+        if (!dateStr) return '—';
+        try {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return dateStr;
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}.${month}.${year} ${hours}:${minutes}`;
+        } catch {
+            return dateStr;
+        }
+    }
+
+    function setDefaultDate() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        tarih.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    function updateSyncBadge(status) {
+        if (status === 'synced') {
+            urunSyncBadge.textContent = '✅ Senkron';
+            urunSyncBadge.className = 'sync-badge synced';
+        } else if (status === 'syncing') {
+            urunSyncBadge.textContent = '⏳ Senkron...';
+            urunSyncBadge.className = 'sync-badge syncing';
+        } else if (status === 'error') {
+            urunSyncBadge.textContent = '❌ Hata';
+            urunSyncBadge.className = 'sync-badge error';
+        }
+    }
+
+    // ============================================
+    // FIREBASE ÜRÜN İŞLEMLERİ
+    // ============================================
+    function urunleriFirebaseYukle() {
+        if (urunRef) {
+            urunRef.off();
+        }
+        
+        urunRef = database.ref('urunler');
+        urunRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            
+            if (data) {
+                const firebaseUrunler = Object.values(data).filter(u => typeof u === 'string' && u.trim() !== '');
+                
+                if (firebaseUrunler.length > 0) {
+                    const currentSorted = [...urunler].sort();
+                    const firebaseSorted = [...firebaseUrunler].sort();
+                    
+                    if (JSON.stringify(currentSorted) !== JSON.stringify(firebaseSorted)) {
+                        urunler = firebaseUrunler;
+                        urunleriGoster();
+                        updateSyncBadge('synced');
+                        console.log('📦 Ürünler Firebase\'den güncellendi:', urunler.length);
+                    }
+                } else {
+                    urunler = [];
+                    urunleriGoster();
+                }
+            } else {
+                if (isFirstLoad) {
+                    const defaultUrunler = [
+                        'iPhone 15 Pro', 'iPhone 15 Pro Max', 'iPhone 15',
+                        'Samsung Galaxy S24 Ultra', 'Samsung Galaxy S24',
+                        'MacBook Pro M3', 'MacBook Air M3',
+                        'iPad Pro', 'iPad Air',
+                        'Apple Watch Ultra 2', 'Apple Watch Series 9',
+                        'AirPods Pro 2', 'AirPods Max',
+                        'PlayStation 5', 'Xbox Series X',
+                        'Dell XPS 13', 'Lenovo ThinkPad X1'
+                    ];
+                    urunler = defaultUrunler;
+                    urunleriGoster();
+                    urunleriFirebaseKaydet();
+                    isFirstLoad = false;
+                }
+            }
+        }, (error) => {
+            console.error('Ürünler yüklenirken hata:', error);
+            updateSyncBadge('error');
+        });
+    }
+
+    function urunleriFirebaseKaydet() {
+        if (isSyncing) return;
+        isSyncing = true;
+        syncBtn.disabled = true;
+        updateSyncBadge('syncing');
+        
+        const ref = database.ref('urunler');
+        const updates = {};
+        urunler.forEach((urun, index) => {
+            const key = `urun_${Date.now()}_${index}`;
+            updates[key] = urun;
+        });
+        
+        ref.set(updates)
+            .then(() => {
+                updateSyncBadge('synced');
+                isSyncing = false;
+                syncBtn.disabled = false;
+                console.log('✅ Ürünler Firebase\'e kaydedildi!', urunler.length);
+            })
+            .catch((error) => {
+                console.error('Ürünler kaydedilirken hata:', error);
+                updateSyncBadge('error');
+                isSyncing = false;
+                syncBtn.disabled = false;
+                alert('❌ Firebase\'e kaydedilirken hata oluştu: ' + error.message);
+            });
+    }
+
+    // ============================================
+    // ÜRÜN YÖNETİMİ
+    // ============================================
+    function urunleriGoster() {
+        urunListesi.innerHTML = '';
+        
+        if (urunler.length === 0) {
+            urunListesi.innerHTML = '<span style="color:#9ca3af; font-size:0.85rem;">Henüz ürün eklenmemiş</span>';
+            urunCount.textContent = '0 ürün';
+            return;
+        }
+        
+        urunler.forEach((urun, index) => {
+            const span = document.createElement('span');
+            span.className = 'urun-item';
+            span.innerHTML = `
+                ${urun}
+                <button class="urun-ekle-btn" data-index="${index}" title="Ürün adına ekle">📋</button>
+                <button class="urun-sil-btn" data-index="${index}" title="Sil">×</button>
+            `;
+            
+            span.querySelector('.urun-ekle-btn').addEventListener('click', function(e) {
+                e.stopPropagation();
+                const idx = parseInt(this.dataset.index);
+                urunAdi.value = urunler[idx];
+                urunAdi.focus();
+                urunAutocompleteList.classList.remove('active');
+            });
+            
+            span.querySelector('.urun-sil-btn').addEventListener('click', function(e) {
+                e.stopPropagation();
+                const idx = parseInt(this.dataset.index);
+                if (confirm(`"${urunler[idx]}" ürününü silmek istediğinize emin misiniz?`)) {
+                    urunler.splice(idx, 1);
+                    urunleriGoster();
+                    urunleriFirebaseKaydet();
+                }
+            });
+            
+            span.addEventListener('click', function() {
+                const idx = parseInt(this.dataset.index);
+                urunAdi.value = urunler[idx];
+                urunAdi.focus();
+                urunAutocompleteList.classList.remove('active');
+            });
+            
+            urunListesi.appendChild(span);
+        });
+        
+        urunCount.textContent = `${urunler.length} ürün`;
+    }
+
+    function urunEkle(ad) {
+        if (!ad || ad.trim() === '') {
+            alert('Lütfen ürün adını girin.');
+            return false;
+        }
+        ad = ad.trim();
+        if (urunler.includes(ad)) {
+            alert('Bu ürün zaten listede var!');
+            return false;
+        }
+        urunler.push(ad);
+        urunleriGoster();
+        urunleriFirebaseKaydet();
+        return true;
+    }
+
+    function urunleriSifirla() {
+        if (confirm('Tüm ürünleri silmek istediğinize emin misiniz? Bu işlem geri alınamaz!')) {
+            if (confirm('Tekrar emin misiniz? Tüm ürünler kalıcı olarak silinecek!')) {
+                urunler = [];
+                urunleriGoster();
+                urunleriFirebaseKaydet();
+                alert('✅ Tüm ürünler silindi!');
+            }
+        }
+    }
+
+    // ============================================
+    // OTOMATİK TAMAMLAMA
+    // ============================================
+    function autoCompleteSearch(input, list, source) {
+        const query = input.value.trim();
+        if (!query || query.length < 1) {
+            list.classList.remove('active');
+            return;
+        }
+        
+        const queryLower = query.toLowerCase();
+        const results = source.filter(u => 
+            u.toLowerCase().includes(queryLower)
+        );
+        
+        if (results.length === 0) {
+            list.classList.remove('active');
+            return;
+        }
+        
+        list.innerHTML = '';
+        results.forEach(urun => {
+            const div = document.createElement('div');
+            div.className = 'autocomplete-item';
+            div.textContent = urun;
+            div.addEventListener('click', function() {
+                input.value = urun;
+                list.classList.remove('active');
+                input.focus();
+            });
+            list.appendChild(div);
+        });
+        
+        list.classList.add('active');
+    }
+
+    // ============================================
+    // BARKOD / QR SCANNER
+    // ============================================
+    function getScannerConfig() {
+        const config = {
+            fps: 15,
+            qrbox: { width: 280, height: 280 },
+            aspectRatio: 1.0
+        };
+
+        if (currentMethod === 'barcode') {
+            config.qrbox = { width: 320, height: 120 };
+            config.aspectRatio = 4/3;
+        } else if (currentMethod === 'qr') {
+            config.qrbox = { width: 250, height: 250 };
+            config.aspectRatio = 1.0;
+        }
+
+        return config;
+    }
+
+    async function startScanner() {
+        if (isScanning) return;
+        
+        scanStatus.textContent = '📱 Kameraya erişim sağlanıyor...';
+        scanStatus.className = 'scan-status';
+        scannerContainer.innerHTML = '';
+        
+        try {
+            html5Scanner = new Html5Qrcode("scanner-container");
+            
+            const config = getScannerConfig();
+            
+            isScanning = true;
+            
+            await html5Scanner.start(
+                { facingMode: "environment" },
+                config,
+                onScanSuccess,
+                onScanError
+            );
+            
+            const methodText = currentMethod === 'auto' ? 'Barkod / QR' : 
+                               currentMethod === 'qr' ? 'QR Kod' : 'Barkod';
+            scanStatus.textContent = `📷 ${methodText} kameraya gösterin...`;
+            scanStatus.className = 'scan-status';
+            
+        } catch (err) {
+            console.error('Scanner başlatma hatası:', err);
+            scanStatus.textContent = '❌ Kamera başlatılamadı: ' + err.message;
+            scanStatus.className = 'scan-status error';
+            isScanning = false;
+        }
+    }
+
+    function onScanSuccess(decodedText) {
+        scanStatus.textContent = `✅ Okundu!`;
+        scanStatus.className = 'scan-status success';
+        
+        lastScanResult = decodedText;
+        scanResultText.textContent = decodedText;
+        scanResultEdit.value = decodedText;
+        scanResult.classList.add('active');
+        
+        setTimeout(() => {
+            useScanResult();
+        }, 1000);
+    }
+
+    function onScanError(errorMessage) {}
+
+    function stopScanner() {
+        if (html5Scanner && isScanning) {
+            try {
+                html5Scanner.stop().then(() => {
+                    html5Scanner.clear();
+                    isScanning = false;
+                    scannerContainer.innerHTML = '';
+                }).catch(err => {
+                    console.error('Scanner durdurma hatası:', err);
+                    isScanning = false;
+                    scannerContainer.innerHTML = '';
+                });
+            } catch (e) {
+                isScanning = false;
+                scannerContainer.innerHTML = '';
+            }
+        } else {
+            scannerContainer.innerHTML = '';
+            isScanning = false;
+        }
+    }
+
+    // ============================================
+    // SCAN MODAL KONTROLLERİ
+    // ============================================
+    function openScanModal() {
+        scanModal.classList.add('active');
+        scanResult.classList.remove('active');
+        scanStatus.textContent = '📱 Kameraya erişim sağlanıyor...';
+        scanStatus.className = 'scan-status';
+        lastScanResult = '';
+        
+        methodAuto.classList.toggle('active', currentMethod === 'auto');
+        methodQR.classList.toggle('active', currentMethod === 'qr');
+        methodBarcode.classList.toggle('active', currentMethod === 'barcode');
+        
+        startScanner();
+    }
+
+    function closeScanModal() {
+        stopScanner();
+        scanModal.classList.remove('active');
+        scanResult.classList.remove('active');
+        scanStatus.textContent = '📱 Barkod veya QR kodu kameraya gösterin...';
+        scanStatus.className = 'scan-status';
+    }
+
+    function useScanResult() {
+        const val = scanResultEdit.value.trim();
+        if (val) {
+            seriInput.value = val;
+            closeScanModal();
+        } else {
+            alert('Lütfen geçerli bir değer girin.');
+        }
+    }
+
+    function changeMethod(method) {
+        if (currentMethod === method) return;
+        currentMethod = method;
+        
+        methodAuto.classList.toggle('active', method === 'auto');
+        methodQR.classList.toggle('active', method === 'qr');
+        methodBarcode.classList.toggle('active', method === 'barcode');
+        
+        stopScanner();
+        setTimeout(() => {
+            startScanner();
+        }, 300);
+        
+        scanResult.classList.remove('active');
+    }
+
+    // ============================================
+    // FORM İŞLEMLERİ
+    // ============================================
+    function formuTemizle() {
+        musteriAdi.value = '';
+        siparisNo.value = '';
+        platform.value = 'Makerpazar.com';
+        urunAdi.value = '';
+        seriInput.value = '';
+        not.value = '';
+        setDefaultDate();
+        editMode = false;
+        editKey = null;
+        vazgecBtn.style.display = 'none';
+        editIndexSpan.style.display = 'none';
+        kaydetBtn.textContent = '💾 Kaydet';
+        urunAutocompleteList.classList.remove('active');
+        seriAutocompleteList.classList.remove('active');
+    }
+
+    // ============================================
+    // FIREBASE SİPARİŞ İŞLEMLERİ - VERİ DÖNÜŞÜMÜ EKLENDİ
+    // ============================================
+    function verileriYukle() {
+        syncStatus.textContent = '⏳ Yükleniyor...';
+        syncStatus.className = 'sync-status';
+        
+        const ref = database.ref('siparisler');
+        ref.on('value', (snapshot) => {
+            const data = snapshot.val();
+            siparisler = [];
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    const item = data[key];
+                    
+                    // Eski veri formatını (seriListesi) yeni formata (seri) dönüştür
+                    let seriDegeri = '';
+                    if (item.seri) {
+                        seriDegeri = item.seri;
+                    } else if (item.seriListesi && Array.isArray(item.seriListesi) && item.seriListesi.length > 0) {
+                        // Eski format: seriListesi dizisinden ilk elemanı al
+                        seriDegeri = item.seriListesi[0] || '';
+                    }
+                    
+                    siparisler.push({
+                        key: key,
+                        musteri: item.musteri || '',
+                        siparisNo: item.siparisNo || '',
+                        platform: item.platform || '',
+                        urun: item.urun || '',
+                        seri: seriDegeri,
+                        tarih: item.tarih || '',
+                        not: item.not || ''
+                    });
+                });
+                siparisler.sort((a, b) => a.siparisNo.localeCompare(b.siparisNo));
+            }
+            listeyiGoster();
+            syncStatus.textContent = '🟢 Bağlandı';
+            syncStatus.className = 'sync-status';
+        }, (error) => {
+            console.error('Veri yükleme hatası:', error);
+            syncStatus.textContent = '🔴 Bağlantı Hatası';
+            syncStatus.className = 'sync-status offline';
+            tableBody.innerHTML = `<tr class="empty-row"><td colspan="8">❌ Veri yüklenemedi: ${error.message}</td></tr>`;
+        });
+    }
+
+    function kaydetFirebase(data) {
+        const ref = database.ref('siparisler');
+        const newRef = ref.push();
+        return newRef.set(data);
+    }
+
+    function guncelleFirebase(key, data) {
+        const ref = database.ref(`siparisler/${key}`);
+        return ref.update(data);
+    }
+
+    function silFirebase(key) {
+        const ref = database.ref(`siparisler/${key}`);
+        return ref.remove();
+    }
+
+    // ============================================
+    // LİSTELEME
+    // ============================================
+    function listeyiGoster(veri) {
+        const liste = veri || siparisler;
+        tableBody.innerHTML = '';
+        
+        if (liste.length === 0) {
+            tableBody.innerHTML = `<tr class="empty-row"><td colspan="8">📭 Kayıt bulunamadı.</td></tr>`;
+            kayitSayisi.textContent = `Toplam: 0 kayıt`;
+            return;
+        }
+
+        liste.forEach((item) => {
+            const tr = document.createElement('tr');
+            const tarihText = item.tarih ? `<span class="badge badge-tarih">${formatDateForDisplay(item.tarih)}</span>` : '—';
+
+            tr.innerHTML = `
+                <td><strong>${item.musteri || ''}</strong></td>
+                <td>${item.siparisNo || ''}</td>
+                <td><span class="badge">${item.platform || ''}</span></td>
+                <td>${item.urun || ''}</td>
+                <td><span class="badge badge-seri">${item.seri || '—'}</span></td>
+                <td>${tarihText}</td>
+                <td style="max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.not || ''}</td>
+                <td>
+                    <div class="actions">
+                        <button class="btn-edit" data-key="${item.key}">✏️</button>
+                        <button class="btn-del" data-key="${item.key}">🗑️</button>
+                    </div>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+
+        document.querySelectorAll('.btn-edit').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const key = this.dataset.key;
+                duzenle(key);
+            });
+        });
+        document.querySelectorAll('.btn-del').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const key = this.dataset.key;
+                if (confirm('Bu kaydı silmek istediğinize emin misiniz?')) {
+                    silFirebase(key)
+                        .catch(err => alert('Silme hatası: ' + err.message));
+                }
+            });
+        });
+
+        kayitSayisi.textContent = `Toplam: ${liste.length} kayıt`;
+    }
+
+    function aramaYap() {
+        const terim = aramaInput.value.trim().toLowerCase();
+        if (terim === '') {
+            listeyiGoster(siparisler);
+            return;
+        }
+        const sonuc = siparisler.filter(item => {
+            const musteriEslesir = item.musteri.toLowerCase().includes(terim);
+            const siparisEslesir = item.siparisNo.toLowerCase().includes(terim);
+            const urunEslesir = item.urun.toLowerCase().includes(terim);
+            const seriEslesir = item.seri.toLowerCase().includes(terim);
+            return musteriEslesir || siparisEslesir || urunEslesir || seriEslesir;
+        });
+        listeyiGoster(sonuc);
+    }
+
+    // ============================================
+    // CRUD İŞLEMLERİ
+    // ============================================
+    function yeniKayit() {
+        const musteri = musteriAdi.value.trim();
+        const siparis = siparisNo.value.trim();
+        if (!musteri || !siparis) {
+            alert('Müşteri Adı ve Sipariş No zorunludur!');
+            return;
+        }
+
+        const data = {
+            musteri: musteri,
+            siparisNo: siparis,
+            platform: platform.value,
+            urun: urunAdi.value.trim(),
+            seri: seriInput.value.trim(),
+            tarih: tarih.value || '',
+            not: not.value.trim(),
+            timestamp: Date.now()
+        };
+
+        kaydetFirebase(data)
+            .then(() => {
+                formuTemizle();
+            })
+            .catch(err => {
+                alert('Kayıt hatası: ' + err.message);
+            });
+    }
+
+    function duzenle(key) {
+        const item = siparisler.find(s => s.key === key);
+        if (!item) return;
+        
+        editMode = true;
+        editKey = key;
+
+        musteriAdi.value = item.musteri || '';
+        siparisNo.value = item.siparisNo || '';
+        platform.value = item.platform || 'Makerpazar.com';
+        urunAdi.value = item.urun || '';
+        seriInput.value = item.seri || '';
+        not.value = item.not || '';
+        
+        if (item.tarih) {
+            try {
+                const date = new Date(item.tarih);
+                if (!isNaN(date.getTime())) {
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const hours = String(date.getHours()).padStart(2, '0');
+                    const minutes = String(date.getMinutes()).padStart(2, '0');
+                    tarih.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+                }
+            } catch {}
+        } else {
+            setDefaultDate();
+        }
+
+        vazgecBtn.style.display = 'inline-block';
+        editIndexSpan.style.display = 'inline-block';
+        editIndexSpan.textContent = `Düzenleniyor: ${item.siparisNo}`;
+        kaydetBtn.textContent = '🔄 Güncelle';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function guncelle() {
+        if (!editKey) return;
+        
+        const musteri = musteriAdi.value.trim();
+        const siparis = siparisNo.value.trim();
+        if (!musteri || !siparis) {
+            alert('Müşteri Adı ve Sipariş No zorunludur!');
+            return;
+        }
+
+        const data = {
+            musteri: musteri,
+            siparisNo: siparis,
+            platform: platform.value,
+            urun: urunAdi.value.trim(),
+            seri: seriInput.value.trim(),
+            tarih: tarih.value || '',
+            not: not.value.trim(),
+            timestamp: Date.now()
+        };
+
+        guncelleFirebase(editKey, data)
+            .then(() => {
+                formuTemizle();
+            })
+            .catch(err => {
+                alert('Güncelleme hatası: ' + err.message);
+            });
+    }
+
+    // ============================================
+    // OLAY BAĞLAMALARI
+    // ============================================
+    let menuOpen = false;
+    menuToggle.addEventListener('click', function() {
+        menuOpen = !menuOpen;
+        menuBody.classList.toggle('open', menuOpen);
+        menuArrow.classList.toggle('open', menuOpen);
+    });
+
+    urunEkleBtn.addEventListener('click', function() {
+        const ad = yeniUrunAdi.value.trim();
+        if (urunEkle(ad)) {
+            yeniUrunAdi.value = '';
+        }
+    });
+    
+    yeniUrunAdi.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') urunEkleBtn.click();
+    });
+
+    syncBtn.addEventListener('click', function() {
+        urunleriFirebaseKaydet();
+    });
+
+    resetBtn.addEventListener('click', urunleriSifirla);
+
+    urunAdi.addEventListener('input', function(e) {
+        autoCompleteSearch(this, urunAutocompleteList, urunler);
+    });
+    urunAdi.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (urunAutocompleteList.classList.contains('active')) {
+                const firstItem = urunAutocompleteList.querySelector('.autocomplete-item');
+                if (firstItem) { firstItem.click(); return; }
+            }
+        }
+        if (e.key === 'Escape') urunAutocompleteList.classList.remove('active');
+    });
+    urunAdi.addEventListener('blur', function() {
+        setTimeout(() => { urunAutocompleteList.classList.remove('active'); }, 200);
+    });
+
+    seriInput.addEventListener('input', function(e) {
+        autoCompleteSearch(this, seriAutocompleteList, urunler);
+    });
+    seriInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (seriAutocompleteList.classList.contains('active')) {
+                const firstItem = seriAutocompleteList.querySelector('.autocomplete-item');
+                if (firstItem) { firstItem.click(); return; }
+            }
+        }
+        if (e.key === 'Escape') seriAutocompleteList.classList.remove('active');
+    });
+    seriInput.addEventListener('blur', function() {
+        setTimeout(() => { seriAutocompleteList.classList.remove('active'); }, 200);
+    });
+
+    kaydetBtn.addEventListener('click', function() {
+        if (editMode) { guncelle(); } else { yeniKayit(); }
+    });
+
+    vazgecBtn.addEventListener('click', function() {
+        formuTemizle();
+        listeyiGoster();
+    });
+
+    aramaInput.addEventListener('input', aramaYap);
+
+    temizleBtn.addEventListener('click', function() {
+        aramaInput.value = '';
+        listeyiGoster(siparisler);
+    });
+
+    yenileBtn.addEventListener('click', function() {
+        verileriYukle();
+    });
+
+    scanBtn.addEventListener('click', openScanModal);
+    scanCloseBtn.addEventListener('click', closeScanModal);
+    scanUseBtn.addEventListener('click', useScanResult);
+    scanRetryBtn.addEventListener('click', function() {
+        scanResult.classList.remove('active');
+        scanStatus.textContent = '📷 Yeniden deneyin...';
+        scanStatus.className = 'scan-status';
+        lastScanResult = '';
+    });
+    
+    scanModal.addEventListener('click', function(e) {
+        if (e.target === this) closeScanModal();
+    });
+
+    methodAuto.addEventListener('click', function() { changeMethod('auto'); });
+    methodQR.addEventListener('click', function() { changeMethod('qr'); });
+    methodBarcode.addEventListener('click', function() { changeMethod('barcode'); });
+
+    // ============================================
+    // BAŞLANGIÇ
+    // ============================================
+    setDefaultDate();
+    formuTemizle();
+    verileriYukle();
+    urunleriFirebaseYukle();
+
+    console.log('✅ Firebase Sipariş Takip Sistemi Başlatıldı!');
+    console.log('📦 Ürünler Firebase Realtime Database\'de saklanıyor!');
+    console.log('📊 Barkod/QR okuyucu aktif!');
+    console.log('🔢 Her ürüne SADECE 1 seri numarası eklenebilir!');
+    console.log('🔄 Eski seriListesi verileri otomatik dönüştürülüyor!');
+    console.log('🔄 Tüm cihazlar arası senkronizasyon aktif!');
+</script>
+</body>
+</html>
