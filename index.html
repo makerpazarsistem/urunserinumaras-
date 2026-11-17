@@ -1,1824 +1,1090 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-    <title>Müşteri Sipariş Takip Sistemi - Firebase</title>
-    
-    <!-- Firebase SDK'ları -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    
-    <!-- QR/Barkod Kütüphanesi -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    
-    <style>
-        * {
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-        }
-        body {
-            background: #f4f7fc;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }
-        .container {
-            max-width: 1100px;
-            width: 100%;
-            background: white;
-            padding: 25px 30px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #1e2a47;
-            border-left: 6px solid #2a7de1;
-            padding-left: 15px;
-            margin-top: 5px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .sync-status {
-            background: #28a745;
-            color: white;
-            padding: 6px 16px;
-            border-radius: 40px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-        .sync-status.offline {
-            background: #dc3545;
-        }
-        
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px 25px;
-            background: #f9faff;
-            padding: 20px;
-            border-radius: 16px;
-            margin: 20px 0;
-        }
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-        .form-group label {
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: #1e2a47;
-            margin-bottom: 4px;
-        }
-        .form-group input, .form-group select, .form-group textarea {
-            padding: 10px 12px;
-            border: 1px solid #d0d9e8;
-            border-radius: 10px;
-            font-size: 0.95rem;
-            transition: 0.2s;
-            background: white;
-        }
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-            border-color: #2a7de1;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(42,125,225,0.15);
-        }
-        .full-width {
-            grid-column: 1 / -1;
-        }
-        
-        .btn {
-            background: #2a7de1;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 40px;
-            font-weight: 600;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: 0.2s;
-            width: fit-content;
-            min-width: 130px;
-        }
-        .btn:hover {
-            background: #1a5bb5;
-            transform: scale(1.02);
-        }
-        .btn-danger {
-            background: #d9534f;
-        }
-        .btn-danger:hover {
-            background: #b52b27;
-        }
-        .btn-success {
-            background: #28a745;
-        }
-        .btn-success:hover {
-            background: #1e7e34;
-        }
-        .btn-warning {
-            background: #f0ad4e;
-            color: #1e2a47;
-        }
-        .btn-warning:hover {
-            background: #d98c2e;
-        }
-        .btn-scan {
-            background: #8b5cf6;
-            color: white;
-        }
-        .btn-scan:hover {
-            background: #7c3aed;
-        }
-        
-        .flex-row {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 12px;
-            margin: 15px 0 5px;
-        }
-        .search-box {
-            flex: 1;
-            min-width: 200px;
-            padding: 10px 16px;
-            border-radius: 40px;
-            border: 1px solid #d0d9e8;
-            font-size: 1rem;
-        }
-        .search-box:focus {
-            border-color: #2a7de1;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(42,125,225,0.15);
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            font-size: 0.9rem;
-        }
-        th {
-            background: #1e2a47;
-            color: white;
-            padding: 12px 8px;
-            text-align: left;
-            white-space: nowrap;
-        }
-        td {
-            padding: 12px 8px;
-            border-bottom: 1px solid #e2e8f0;
-            vertical-align: middle;
-        }
-        tr:hover td {
-            background: #f4f9ff;
-        }
-        .badge {
-            background: #e9ecf3;
-            padding: 3px 10px;
-            border-radius: 30px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #1e2a47;
-            display: inline-block;
-            margin: 1px 2px;
-        }
-        .badge-seri {
-            background: #dbeafe;
-            color: #1e40af;
-            border: 1px solid #bfdbfe;
-        }
-        .badge-tarih {
-            background: #fef3c7;
-            color: #92400e;
-            border: 1px solid #fde68a;
-        }
-        .seri-list {
-            max-width: 200px;
-        }
-        .actions {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-        .actions button {
-            border: none;
-            padding: 5px 12px;
-            border-radius: 30px;
-            font-weight: 600;
-            font-size: 0.75rem;
-            cursor: pointer;
-            transition: 0.15s;
-        }
-        .btn-edit {
-            background: #ffc107;
-            color: #1e2a47;
-        }
-        .btn-edit:hover {
-            background: #e0a800;
-        }
-        .btn-del {
-            background: #dc3545;
-            color: white;
-        }
-        .btn-del:hover {
-            background: #b02a37;
-        }
-        .empty-row td {
-            text-align: center;
-            color: #6c7a92;
-            padding: 30px 0;
-        }
-        
-        /* ÜRÜN MENÜSÜ */
-        .urun-menu-container {
-            grid-column: 1 / -1;
-            background: #f8faff;
-            border-radius: 16px;
-            border: 2px solid #e8edf5;
-            overflow: hidden;
-            margin: 5px 0 10px 0;
-        }
-        .urun-menu-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 16px;
-            background: #eef2f7;
-            border-bottom: 2px solid #dce3ed;
-            cursor: pointer;
-            user-select: none;
-        }
-        .urun-menu-header:hover {
-            background: #e8edf5;
-        }
-        .urun-menu-header h3 {
-            margin: 0;
-            color: #1e2a47;
-            font-size: 0.95rem;
-        }
-        .urun-menu-header .urun-count {
-            background: #1e2a47;
-            color: white;
-            padding: 2px 12px;
-            border-radius: 30px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .urun-menu-header .arrow {
-            transition: 0.3s;
-            font-size: 1.2rem;
-            color: #6c7a92;
-        }
-        .urun-menu-header .arrow.open {
-            transform: rotate(180deg);
-        }
-        
-        .urun-menu-body {
-            padding: 12px 16px;
-            background: white;
-            display: none;
-        }
-        .urun-menu-body.open {
-            display: block;
-        }
-        
-        .urun-ekle-alani {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
-        }
-        .urun-ekle-alani input {
-            flex: 1;
-            min-width: 120px;
-            padding: 6px 12px;
-            border: 1px solid #d0d9e8;
-            border-radius: 8px;
-            font-size: 0.85rem;
-        }
-        .urun-ekle-alani input:focus {
-            border-color: #2a7de1;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(42,125,225,0.15);
-        }
-        .urun-ekle-alani .btn-urun-ekle {
-            padding: 6px 16px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 0.8rem;
-            transition: 0.2s;
-            background: #28a745;
-            color: white;
-        }
-        .urun-ekle-alani .btn-urun-ekle:hover {
-            background: #1e7e34;
-        }
-        .urun-ekle-alani .btn-sync {
-            padding: 6px 16px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 0.8rem;
-            transition: 0.2s;
-            background: #2a7de1;
-            color: white;
-        }
-        .urun-ekle-alani .btn-sync:hover {
-            background: #1a5bb5;
-        }
-        .urun-ekle-alani .btn-sync:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .urun-ekle-alani .btn-reset {
-            padding: 6px 16px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 0.8rem;
-            transition: 0.2s;
-            background: #dc3545;
-            color: white;
-        }
-        .urun-ekle-alani .btn-reset:hover {
-            background: #b02a37;
-        }
-        
-        .urun-listesi {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            max-height: 150px;
-            overflow-y: auto;
-            padding: 4px 0;
-        }
-        .urun-listesi::-webkit-scrollbar {
-            width: 4px;
-        }
-        .urun-listesi::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-        .urun-listesi::-webkit-scrollbar-thumb {
-            background: #c1c9d6;
-            border-radius: 4px;
-        }
-        .urun-listesi::-webkit-scrollbar-thumb:hover {
-            background: #a8b2c2;
-        }
-        
-        .urun-item {
-            background: #f3f4f6;
-            padding: 4px 14px;
-            border-radius: 30px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            transition: 0.2s;
-            border: 2px solid transparent;
-            color: #1e2a47;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .urun-item:hover {
-            background: #dbeafe;
-            border-color: #93c5fd;
-        }
-        .urun-item .urun-ekle-btn {
-            background: none;
-            border: none;
-            color: #3b82f6;
-            cursor: pointer;
-            font-size: 0.7rem;
-            padding: 0 2px;
-        }
-        .urun-item .urun-ekle-btn:hover {
-            color: #1d4ed8;
-        }
-        .urun-item .urun-sil-btn {
-            background: none;
-            border: none;
-            color: #dc3545;
-            cursor: pointer;
-            font-size: 0.7rem;
-            padding: 0 2px;
-        }
-        .urun-item .urun-sil-btn:hover {
-            color: #b02a37;
-        }
-        
-        /* OTOMATİK TAMAMLAMA */
-        .input-wrapper {
-            position: relative;
-            flex: 1;
-            min-width: 150px;
-        }
-        .autocomplete-list {
-            position: absolute;
-            background: white;
-            border: 2px solid #dbeafe;
-            border-radius: 10px;
-            max-height: 200px;
-            overflow-y: auto;
-            z-index: 100;
-            width: 100%;
-            display: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            top: 100%;
-            left: 0;
-            margin-top: 2px;
-        }
-        .autocomplete-list.active {
-            display: block;
-        }
-        .autocomplete-list .autocomplete-item {
-            padding: 10px 14px;
-            cursor: pointer;
-            transition: 0.15s;
-            border-bottom: 1px solid #f3f4f6;
-        }
-        .autocomplete-list .autocomplete-item:hover {
-            background: #f0f4ff;
-        }
-        .autocomplete-list .autocomplete-item:last-child {
-            border-bottom: none;
-        }
-        
-        /* SERİ PANELİ */
-        .seri-panel {
-            background: #f0f4ff;
-            border: 2px solid #dbeafe;
-            border-radius: 16px;
-            padding: 20px;
-            margin: 10px 0;
-            grid-column: 1 / -1;
-        }
-        .seri-panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .seri-panel-header h3 {
-            margin: 0;
-            color: #1e2a47;
-            font-size: 1.1rem;
-        }
-        
-        .seri-input-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .seri-input-group .input-wrapper {
-            flex: 2;
-            min-width: 200px;
-        }
-        .seri-input-group .input-wrapper input {
-            width: 100%;
-            padding: 10px 14px;
-            border: 2px solid #d0d9e8;
-            border-radius: 10px;
-            font-size: 0.95rem;
-            transition: 0.2s;
-            background: white;
-        }
-        .seri-input-group .input-wrapper input:focus {
-            border-color: #2a7de1;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(42,125,225,0.15);
-        }
-        .seri-input-group .btn {
-            min-width: auto;
-            padding: 10px 20px;
-        }
-        
-        .seri-info {
-            margin-top: 10px;
-            font-size: 0.8rem;
-            color: #6c7a92;
-        }
-        
-        /* SCAN MODAL */
-        .scan-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.85);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
-        }
-        .scan-modal.active {
-            display: flex;
-        }
-        .scan-modal-content {
-            background: #1a1a2e;
-            padding: 20px;
-            border-radius: 20px;
-            max-width: 500px;
-            width: 95%;
-            max-height: 95vh;
-            overflow-y: auto;
-        }
-        .scan-modal-content .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-            color: white;
-        }
-        .scan-modal-content .header h3 {
-            margin: 0;
-            color: white;
-            font-size: 1rem;
-        }
-        .scan-modal-content .close-btn {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #9ca3af;
-        }
-        .scan-modal-content .close-btn:hover {
-            color: #dc3545;
-        }
-        
-        .scan-methods {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
-        }
-        .scan-methods button {
-            flex: 1;
-            min-width: 70px;
-            padding: 8px 12px;
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            background: rgba(255,255,255,0.05);
-            color: white;
-            cursor: pointer;
-            transition: 0.2s;
-            font-weight: 600;
-            font-size: 0.75rem;
-        }
-        .scan-methods button:hover {
-            background: rgba(255,255,255,0.1);
-            border-color: rgba(255,255,255,0.2);
-        }
-        .scan-methods button.active {
-            border-color: #8b5cf6;
-            background: rgba(139, 92, 246, 0.2);
-        }
-        
-        #scanner-container {
-            width: 100%;
-            border-radius: 12px;
-            overflow: hidden;
-            background: #000;
-            min-height: 300px;
-            position: relative;
-        }
-        #scanner-container video {
-            border-radius: 12px;
-            width: 100%;
-        }
-        
-        .scan-status {
-            text-align: center;
-            padding: 8px 12px;
-            margin-top: 10px;
-            border-radius: 10px;
-            font-size: 0.8rem;
-            color: #9ca3af;
-            background: rgba(255,255,255,0.05);
-        }
-        .scan-status.loading {
-            background: rgba(254, 243, 199, 0.15);
-            color: #fcd34d;
-        }
-        .scan-status.success {
-            background: rgba(16, 185, 129, 0.15);
-            color: #34d399;
-        }
-        .scan-status.error {
-            background: rgba(239, 68, 68, 0.15);
-            color: #f87171;
-        }
-        
-        .loading-spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,0.2);
-            border-top: 2px solid #8b5cf6;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .scan-result {
-            margin-top: 12px;
-            padding: 12px 16px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 12px;
-            display: none;
-            border: 1px solid rgba(139, 92, 246, 0.3);
-        }
-        .scan-result.active {
-            display: block;
-        }
-        .scan-result .result-label {
-            font-size: 0.7rem;
-            color: #9ca3af;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
-        }
-        .scan-result .result-text {
-            font-size: 1rem;
-            font-weight: 600;
-            color: white;
-            word-break: break-all;
-            padding: 8px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-        }
-        .scan-result .result-edit {
-            margin-top: 6px;
-            display: flex;
-            gap: 6px;
-        }
-        .scan-result .result-edit input {
-            flex: 1;
-            padding: 6px 12px;
-            border-radius: 8px;
-            border: 2px solid rgba(255,255,255,0.1);
-            background: rgba(0,0,0,0.3);
-            color: white;
-            font-size: 0.9rem;
-            font-family: 'Courier New', monospace;
-        }
-        .scan-result .result-edit input:focus {
-            outline: none;
-            border-color: #8b5cf6;
-        }
-        .scan-result .result-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 8px;
-        }
-        .scan-result .result-actions button {
-            padding: 8px 20px;
-            border: none;
-            border-radius: 30px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-            font-size: 0.85rem;
-        }
-        .scan-result .result-actions .btn-use {
-            background: #00ff64;
-            color: #1a1a2e;
-            flex: 1;
-        }
-        .scan-result .result-actions .btn-use:hover {
-            background: #00e05a;
-        }
-        .scan-result .result-actions .btn-retry {
-            background: rgba(255,255,255,0.1);
-            color: white;
-        }
-        .scan-result .result-actions .btn-retry:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        
-        #editIndex {
-            display: none;
-        }
-        .bilgi {
-            background: #d1ecf1;
-            padding: 8px 16px;
-            border-radius: 40px;
-            color: #0c5460;
-            font-size: 0.9rem;
-        }
-        .sync-badge {
-            display: inline-block;
-            padding: 2px 10px;
-            border-radius: 30px;
-            font-size: 0.65rem;
-            font-weight: 600;
-            margin-left: 6px;
-        }
-        .sync-badge.synced {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        .sync-badge.syncing {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        .sync-badge.error {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        
-        @media (max-width: 700px) {
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-            .container {
-                padding: 15px;
-            }
-            h1 {
-                font-size: 1.1rem;
-            }
-            .sync-status {
-                font-size: 0.65rem;
-                padding: 4px 10px;
-            }
-            .btn {
-                width: 100%;
-                justify-content: center;
-                min-height: 44px;
-            }
-            .seri-input-group {
-                flex-direction: column;
-            }
-            .seri-input-group .input-wrapper {
-                width: 100%;
-                min-width: unset;
-            }
-            .seri-input-group .btn {
-                width: 100%;
-            }
-            .urun-ekle-alani {
-                flex-direction: column;
-            }
-            .urun-ekle-alani input {
-                width: 100%;
-            }
-            .urun-ekle-alani button {
-                width: 100%;
-            }
-            .flex-row {
-                gap: 8px;
-            }
-            .search-box {
-                width: 100%;
-                min-width: unset;
-            }
-            .scan-modal-content {
-                padding: 12px;
-                width: 98%;
-            }
-            .scan-methods button {
-                font-size: 0.65rem;
-                padding: 6px 8px;
-                min-width: 50px;
-            }
-            table {
-                font-size: 0.75rem;
-            }
-            th, td {
-                padding: 8px 4px;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .container {
-                padding: 10px;
-            }
-            h1 {
-                font-size: 0.95rem;
-            }
-            .form-grid {
-                padding: 10px;
-                gap: 8px;
-            }
-            th, td {
-                padding: 6px 3px;
-                font-size: 0.65rem;
-            }
-            .badge {
-                font-size: 0.55rem;
-                padding: 2px 6px;
-            }
-            .actions button {
-                font-size: 0.6rem;
-                padding: 3px 8px;
-            }
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Sipariş &amp; Seri No Takip — makerpazar</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABfCAMAAAAgajJyAAAAYFBMVEVSPJ4oMCFPO5Q0MVpFOHNYI25EOHBOO5FdXV9FOHI6NU0wMik8NlNRNpYAAP9xcf80Mzf/AP9STKR1DPL///9qagA9NlQJXAA7O7KqVf83NT8AVVUA/wBVODgAAABSPKG/jidvAAAAIHRSTlPgEqETVxWiYgPRXluZIAECkQEPAwECygMEA8UDAQkA3M3i5KIAAAkwSURBVHja5VrZdtw4DiW4iNprs5PMdDf1/385uAApUbW5YjsPc1o5J7GrKF6sFyAYkz7xEL2+1qQ//PwLAej/HmBuw+zaNlD7JwBCjTR/OwDLHFzfj8fj2PfhW03EW1P7lshbU57F9vL59wAQUUg0dItszY9gjOzw+ZtMRFMK1iwst/e+D943AOsG+pA3zEu8w+L3LLqxPvoGD+NEy4o0DOG+DMAQAca3FkqsPuDf+NfRfdVErWPnLrL/uvuKAcCYkmsfWuoDAIdAcU3H20dRgm0iz3BUk/E3piFI0dInANrkZhc5boyd2MNjjn5sRQE+6EkCl5U4fcpEYU68w4KYb1h8dge1bvVMZPs4YiUWfJXC7wK0DsHTLUsXp0RskZDOlaU5M1h6n0QE+cG1vwfgKHm820Bax1KKmWmNLkcTPjwghBnBujQHXtq+BMCmmFOIcGSkFNgXvEMS964rwhwE3bnk4A+sPLUvaoB9IsS3E1wdAMAmcpWJ2jP8ArrgBRQlzUM60FW8PjQRDQieyNLBGgAQT7rDAR+0B10BgJboDbEsniBY9iMAojn1o1ofr7PmSczc9fK2RDxBQQDow7HVIyc4sfdeMHezixpE9yA0hLiEiTSNbYzYr48iMJzsELwunE78FiAiNKQnABzOA1iGDVoWqomsFoOKjSISwLnC6PyiyODqwn0NwOpLcvLbVp/Yg/Z7iaKxoiPrL0EzjLjKNVjq/cQLkN8IvLsArC+UX9aigkc42Uguhai4MSLkebcmDWKYTSurif2WE9vQJrtEC6yzFEMsplOjxDCo8lUogP2aoTG5yhkVKVMsK+HesafZfE5snt7m1fCmo0DExUud6fmfrg/ZKyRhZvwoFOun88SPlwqRlXDpxCK3puaWCZG3wIxNxEa/SF2MiPFJ8npRx6hZdKtIW8ctKW2diOmlVJm1bUgioxlRvCSlQgDfuEPAN0vHOh8ra5vu2Ev+stlm5xyWhgPTF0hchUGdyACAJziXbaehoaSAkGc7nviFbrhku2sM2UHjLe5omr0YJduEx7ohqYl4j5lG8D4v5m+aFLZcabkEnJg3j4eDQg5D5ryZZbI1NZD0NxBwRhkXXUxRYFBruhWgyo2QAtJAwnjeom6mH2xvV1EDkM/CkJx+E7Qlk12g2rIdEwr8jrJmVqtZFEBkb3M9kCoUIcxbqXIwkQDI1yhIJtMDFHNUVLHCaVwS2NMwvYfVBXQ1HXYIyEcpZYEfh/YPTl7kdWZIfq0pAB6h45AK2iD6UGWUEBu+3s4HQrJBsqtKP6KyFD+/UwFoWwCwhd5XAH6v94g8L+3QIrzZ7rpVgmeUUr2HCl7SwqiT+fvZFQBYnjd1omQEoZRYz5TRxJWYd7TITs5LV+4CxY5aR2DtCgCJgeiPMPd0bCqy69OkJircDAtzOFHHn9LQrBTejT05BUjS8dQasAhDeuP6yz9F1HTP1mlG70l506d2zrbJng6kSU9OlvbrUiuFtpeWxOQa5kVJdChyDGioOvFJEHWkmcw0xA8TNijCm3Vp4Xukl0cv4yUCagDhW08XxwicdFPmisk3So4MbeveF22qeMBPyrF09sKWHLipF+K50UCPLYehU2Ifh1FjSLqXXm0tbJotjpjTpU3PnyrPB2haqspeAwHptBvcycoccuixZePF/ij7VpuWq6XW4+vRqPxXGmip5NCCJ1RbxH8P3jxxxCw5pWYXxDPStcw/yYvsWGqjlOhS4ZYbEymAsYN8OAUfJgmYC5wHPxxC1XxM8FkL+1PQpSRuLoLe+qA8OFNMU0V2Lml0U92QTODF8WfVTgaXg6fs8wBAij06iTPnfxZXml9XZzKXopBzihcEFLWfuYE0HwJg1VidH7Ug0GEHUNQqNdH97XLwFIQnJlIl1qN8yH3Rf4KrjlcIoJE27tOTiNls9BBgUVIUJdp32UwaAoTgwZ0vl/MZPpBAzbuHHPsaKWbd5QFAUeIHqokAnCWqhSCyyLHkpVJTCZ4rMR8CLFkcK8H0lqJmpsR6RP/YCaKYCNXRm5v9nwCYFUKb+PYf+CAOVyfxTP30Lu1+NuxiVic/BKjDbBHGaeUQSCBTKUOyO5osTphDCqv4LwJcGQrhc5HiISw0DEPvB5gdXMHHkWDNTQiu+fQRgMaEGKLLTLbmAfjRhhI8nwUodvKpl6DppZ6deVbx306sZjdm+xyAyca0ITQ/TK4HjNhJJ+hzuV++BJAPDFcVbbGTBs+yfMlEpSVBOE0U15Mbzy9uY38FX397wQe1syOldZ4gR93vAygVeygDqbFb+61vAjC7k2fZyJgvAeyKk6mowORT5RXA75DdDqCW+b7tzOcAbnT/AwD1LPkJwCdNtFz15uYhJZqrfN4D0BMfmBdMUZRczM3bzwFWWi+J9jhkrjd/DWDZYvOJBmbr454AxAe6G7tZ9w6AKdtb8wxg15vuX7cTj+KqTsbcqxa8Ki6371dRlHCeW8xyFSmgW/7quOl/owG+Qoc2LeYmXXYAbzhJFEaoAI6zHK7vReEqPnHHF28AlE/8Ni/y5sZKMoj6xQYMegC+E51cTAkXOe7e/jwHJbMNPFxz7UQZIEwtTqR3i4v0+TJj4bHFGgUbmXIRPNRDwXwwrG0kx+91PL3lXlkUdWzCIwhTc0budmg3dWzprCPBXQW3Mo0mx83jWj6XrcuN7S854UCDwt2ZOPLx1tTTB+4x454fzFE6fw2lMpotnSOWafteA5i1ujq6mZvyPYm3pkIQgFaP4nw4dK4f830UGiS56AoybSWzK00465NMqszNWNzVnSAAUN8hV9zOGrnBQ3DK5zqb2jwX8+mIF14D4E5OpjI5yo9tvqNrcJHQUjkfnFqZUE/5juGNKkqEUqFM8W6H4/NJJM6Za7U9aYa7l0CznpaXXqbzeX9Mrj8Y71PqS1m3esl1c++Qj2lz0nseG7POmCRM4cMLipAnBDmh+nT3whIjVSxtqkbF09Wt/H2AnxfNXQ3HoMO0WxV0cLexTHfkmYZ77Q6nzYN4PhNMeuH48Hk/5RsTnLb4uv/FSyK5aFlwfqIPL6XdBb62tN6EvHQLldwJnj2/8B9ZCPfZOfbp6qbOPLjCl7/538sr+/OfvzDCe/Wqsb7te/X/cvBdxv2b6/8BPs69fHpj+goAAAAASUVORK5CYII=">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<!-- Firebase SDK'ları -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<!-- QR/Barkod okuyucu -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+  :root{
+    --brand:#533DA1; --brand-2:#6B53C9; --brand-soft:#EEEAFB; --brand-ink:#2E2160;
+    --ink:#1E1B2E; --ink-2:#4A4660; --mute:#8A86A0; --line:#E3E0EE;
+    --bg:#F5F3FA; --card:#FFFFFF; --ok:#1F9D6B; --warn:#D9822B; --danger:#D64545;
+    --radius:14px; --shadow:0 1px 2px rgba(30,27,46,.05),0 8px 24px -8px rgba(30,27,46,.12);
+    --f-head:'Poppins',system-ui,sans-serif; --f-body:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --f-mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:var(--f-body);color:var(--ink);line-height:1.5;min-height:100vh;background:var(--bg);
+    background-image:radial-gradient(circle at 1px 1px,rgba(83,61,161,.09) 1px,transparent 0);background-size:22px 22px
+  }
+  button{font-family:inherit}
+
+  /* ---------- Üst bar ---------- */
+  .topbar{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .topbar-inner{max-width:1280px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:18px}
+  .brand-logo{height:34px;display:block}
+  .topbar .divider{width:1px;height:28px;background:var(--line)}
+  .topbar h1{font-family:var(--f-head);font-size:1rem;font-weight:600}
+  .topbar .sub{font-size:.8rem;color:var(--mute)}
+  .chip{margin-left:auto;display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--brand-soft);color:var(--brand);font-size:.78rem;font-weight:600;white-space:nowrap}
+  .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(31,157,107,.18)}
+  .chip.wait .dot{background:#C9A227;box-shadow:0 0 0 3px rgba(201,162,39,.2);animation:pulse 1.2s infinite}
+  .chip.off{background:#FDECEC;color:var(--danger)}
+  .chip.off .dot{background:var(--danger);box-shadow:0 0 0 3px rgba(214,69,69,.18)}
+  @keyframes pulse{50%{opacity:.35}}
+
+  .wrap{max-width:1280px;margin:0 auto;padding:26px 24px 10px}
+  .grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr);gap:22px;align-items:start}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .card-head{display:flex;align-items:center;gap:12px;padding:16px 22px;border-bottom:1px solid var(--line)}
+  .card-head .num{width:26px;height:26px;border-radius:8px;background:var(--brand);color:#fff;font:600 .8rem var(--f-head);display:grid;place-items:center;flex:none}
+  .card-head h2{font-family:var(--f-head);font-size:1rem;font-weight:600}
+  .card-head .hint{margin-left:auto;font-size:.78rem;color:var(--mute)}
+  .card-body{padding:20px 22px}
+
+  /* ---------- Form ---------- */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+  .full{grid-column:1/-1}
+  .field label{display:flex;align-items:baseline;gap:6px;font-size:.8rem;font-weight:600;color:var(--ink-2);margin-bottom:6px}
+  .field label .req{color:var(--danger)}
+  .field label .opt{font-weight:500;color:var(--mute)}
+  .input-wrap{position:relative;display:flex;align-items:center}
+  .input-wrap.top{align-items:flex-start}
+  .input-wrap svg.ico{position:absolute;left:13px;width:17px;height:17px;color:var(--mute);pointer-events:none;z-index:1}
+  .input-wrap.top svg.ico{top:13px}
+  input[type=text],input[type=search],input[type=datetime-local],select,textarea{
+    width:100%;padding:11px 14px 11px 40px;border:1px solid var(--line);border-radius:10px;background:#FBFAFE;
+    font:500 .95rem var(--f-body);color:var(--ink);transition:border-color .15s,box-shadow .15s,background .15s;appearance:none
+  }
+  select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A86A0' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;cursor:pointer}
+  textarea{resize:vertical;min-height:70px;line-height:1.5}
+  input.mono{font-family:var(--f-mono);font-size:.92rem;letter-spacing:.02em}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand-2);background:#fff;box-shadow:0 0 0 4px rgba(107,83,201,.14)}
+  input::placeholder,textarea::placeholder{color:#B4B0C6;font-weight:400}
+  .warn-text{display:none;margin-top:6px;font-size:.78rem;color:#B5651D;font-weight:500}
+  .warn-text.show{display:block}
+
+  /* Seri paneli */
+  .seri-panel{border:1.5px solid #D9D1F5;background:linear-gradient(180deg,#F8F6FF,#F3F0FD);border-radius:12px;padding:14px}
+  .seri-panel .field label{color:var(--brand-ink)}
+  .seri-row{display:flex;gap:10px}
+  .seri-row .input-wrap{flex:1}
+  .seri-row input{background:#fff;font-size:1rem;padding-top:12px;padding-bottom:12px}
+  .seri-info{margin-top:8px;font-size:.76rem;color:var(--mute)}
+
+  /* Otomatik tamamlama */
+  .ac-list{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:40;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 30px -10px rgba(30,27,46,.25);max-height:220px;overflow:auto;display:none;padding:4px}
+  .ac-list.active{display:block}
+  .ac-item{padding:9px 12px;border-radius:7px;cursor:pointer;font-size:.9rem}
+  .ac-item:hover,.ac-item.sel{background:var(--brand-soft);color:var(--brand-ink)}
+  .ac-item mark{background:none;color:var(--brand);font-weight:700}
+
+  /* Butonlar */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 18px;border-radius:10px;border:1px solid transparent;font:600 .9rem var(--f-body);cursor:pointer;transition:transform .08s,background .15s,border-color .15s;white-space:nowrap}
+  .btn svg{width:17px;height:17px;flex:none}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .btn-primary{background:var(--brand);color:#fff;box-shadow:0 6px 16px -6px rgba(83,61,161,.6)}
+  .btn-primary:hover{background:var(--brand-ink)}
+  .btn-ok{background:var(--ok);color:#fff}
+  .btn-ok:hover{background:#178459}
+  .btn-ghost{background:#fff;color:var(--ink-2);border-color:var(--line)}
+  .btn-ghost:hover{border-color:#CFC9E3;background:#FAF9FD}
+  .btn-ghost.danger:hover{color:var(--danger);border-color:#F1CACA;background:#FFF7F7}
+  .btn-scan{background:var(--ink);color:#fff}
+  .btn-scan:hover{background:#000}
+  .btn-sm{padding:8px 12px;font-size:.8rem;border-radius:8px}
+  .btn-sm svg{width:15px;height:15px}
+  .form-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px}
+  .form-actions .btn-primary{padding:13px 26px;font-size:.98rem}
+  .form-actions kbd{font:500 .7rem var(--f-mono);padding:2px 6px;border-radius:5px;background:rgba(255,255,255,.16)}
+  .edit-pill{display:none;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:#FFF3E3;color:#9A5714;font-size:.8rem;font-weight:600}
+  .edit-pill.show{display:inline-flex}
+  .edit-pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--warn)}
+  .card.editing{border-color:#F0C48D;box-shadow:0 0 0 4px rgba(217,130,43,.12),var(--shadow)}
+
+  /* ---------- Ürün listesi ---------- */
+  .prod-head{cursor:pointer;user-select:none}
+  .prod-head .count{font:600 .72rem var(--f-mono);padding:2px 9px;border-radius:99px;background:var(--brand-soft);color:var(--brand)}
+  .sync-badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;font-size:.7rem;font-weight:600}
+  .sync-badge.synced{background:#E5F6EE;color:#17845A}
+  .sync-badge.syncing{background:#FFF3E3;color:#9A5714}
+  .sync-badge.error{background:#FDECEC;color:var(--danger)}
+  .prod-head .arrow{margin-left:auto;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--mute);transition:transform .2s}
+  .prod-head .arrow.open{transform:rotate(180deg)}
+  .prod-body{display:none}
+  .prod-body.open{display:block}
+  .prod-add{display:flex;gap:8px;margin-bottom:12px}
+  .prod-add .input-wrap{flex:1}
+  .prod-add input{padding-top:9px;padding-bottom:9px;font-size:.9rem}
+  .prod-filter{margin-bottom:10px}
+  .prod-filter input{padding-top:8px;padding-bottom:8px;font-size:.85rem;background:#fff}
+  .urun-listesi{display:flex;flex-wrap:wrap;gap:6px;max-height:330px;overflow:auto;padding:2px}
+  .urun-listesi::-webkit-scrollbar{width:6px}
+  .urun-listesi::-webkit-scrollbar-thumb{background:#D8D3EA;border-radius:6px}
+  .urun-item{
+    display:inline-flex;align-items:center;gap:2px;padding:5px 6px 5px 12px;border-radius:99px;background:#F3F1F9;border:1px solid transparent;
+    font-size:.82rem;font-weight:500;color:var(--ink);cursor:pointer;transition:all .12s
+  }
+  .urun-item:hover{background:var(--brand-soft);border-color:#D2C8F3;color:var(--brand-ink)}
+  .urun-item.active{background:var(--brand);color:#fff}
+  .urun-item .x{width:20px;height:20px;border:0;border-radius:50%;background:transparent;color:var(--mute);cursor:pointer;display:grid;place-items:center;font-size:15px;line-height:1}
+  .urun-item .x:hover{background:#FDECEC;color:var(--danger)}
+  .urun-item.active .x{color:rgba(255,255,255,.8)}
+  .prod-empty{color:var(--mute);font-size:.85rem;padding:8px 2px}
+  .prod-tools{display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
+  .prod-tools .btn{flex:1}
+
+  /* ---------- Kayıtlar ---------- */
+  .list-card{margin-top:22px}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .toolbar .search{flex:1;min-width:240px}
+  .toolbar .search input{padding-right:84px}
+  .toolbar .inline-btn{position:absolute;right:6px;padding:6px 10px;border:0;border-radius:7px;background:var(--brand-soft);color:var(--brand);font:600 .74rem var(--f-body);cursor:pointer}
+  .toolbar .platform-filter{width:190px}
+  .toolbar .platform-filter select{padding-left:40px}
+  .bilgi{font:600 .78rem var(--f-mono);padding:8px 12px;border-radius:9px;background:#F3F1F9;color:var(--ink-2);white-space:nowrap}
+
+  .table-wrap{border:1px solid var(--line);border-radius:12px;overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:.87rem}
+  th{text-align:left;padding:11px 12px;background:#FAF9FD;color:var(--mute);font:600 .7rem var(--f-body);letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--line);white-space:nowrap}
+  th.sortable{cursor:pointer;user-select:none}
+  th.sortable:hover{color:var(--brand)}
+  th .s{opacity:.35;margin-left:4px}
+  th.sorted .s{opacity:1;color:var(--brand)}
+  td{padding:11px 12px;border-bottom:1px solid #F0EEF6;vertical-align:middle}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover td{background:#FCFBFF}
+  tr.editing-row td{background:#FFF8EE !important}
+  td.musteri{font-weight:600}
+  td.sno{font-family:var(--f-mono);font-size:.83rem;white-space:nowrap}
+  td.note{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2)}
+  .badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:.74rem;font-weight:600;background:#F1EEF9;color:var(--ink-2);white-space:nowrap}
+  .badge-seri{font-family:var(--f-mono);font-size:.76rem;background:var(--brand-soft);color:var(--brand-ink);cursor:copy;border:1px solid #DDD4F7}
+  .badge-seri:hover{background:#E2DAFA}
+  .badge-tarih{background:#FFF6E6;color:#8A5410;font-family:var(--f-mono);font-size:.74rem}
+  .dash{color:#C2BED3}
+  .actions{display:flex;gap:6px;justify-content:flex-end}
+  .icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink-2);display:grid;place-items:center;cursor:pointer;transition:all .12s}
+  .icon-btn svg{width:16px;height:16px}
+  .icon-btn:hover{border-color:#CFC9E3;color:var(--brand);background:#FAF9FD}
+  .icon-btn.del:hover{color:var(--danger);border-color:#F1CACA;background:#FFF7F7}
+  .empty-row td{text-align:center;color:var(--mute);padding:40px 12px}
+
+  /* ---------- Tarayıcı modalı ---------- */
+  .scan-modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(10,8,20,.86);backdrop-filter:blur(4px)}
+  .scan-modal.active{display:flex}
+  .scan-card{width:min(500px,100%);max-height:96vh;overflow:auto;background:#17142A;border-radius:18px;padding:18px;color:#fff;box-shadow:0 30px 60px -20px rgba(0,0,0,.7);animation:pop .18s ease-out}
+  @keyframes pop{from{transform:scale(.97);opacity:0}to{transform:none;opacity:1}}
+  .scan-card .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .scan-card h3{font:600 1rem var(--f-head)}
+  .close-btn{width:36px;height:36px;border-radius:10px;border:0;background:rgba(255,255,255,.1);color:#fff;font-size:20px;cursor:pointer}
+  .close-btn:hover{background:rgba(255,255,255,.2)}
+  .scan-methods{display:flex;padding:4px;border-radius:11px;background:rgba(255,255,255,.07);gap:2px;margin-bottom:12px}
+  .scan-methods button{flex:1;padding:8px 10px;border:0;border-radius:8px;background:transparent;color:#BDB6DD;font-weight:600;font-size:.8rem;cursor:pointer}
+  .scan-methods button.active{background:#fff;color:var(--brand-ink)}
+  #scanner-container{width:100%;min-height:300px;border-radius:12px;overflow:hidden;background:#000;position:relative}
+  #scanner-container video{width:100%;display:block}
+  .scan-status{margin-top:10px;padding:9px 12px;border-radius:10px;font-size:.84rem;text-align:center;background:rgba(255,255,255,.06);color:#C9C2E8}
+  .scan-status.success{background:rgba(31,157,107,.18);color:#6EE3B0}
+  .scan-status.error{background:rgba(214,69,69,.18);color:#FF9C9C}
+  .scan-result{display:none;margin-top:12px;padding:14px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(165,146,255,.35)}
+  .scan-result.active{display:block}
+  .result-label{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:#A9A2C8;margin-bottom:6px}
+  .scan-result input{width:100%;padding:11px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.35);color:#fff;font:600 1.05rem var(--f-mono)}
+  .scan-result input:focus{outline:none;border-color:#A592FF;box-shadow:none}
+  .result-actions{display:flex;gap:8px;margin-top:10px}
+  .result-actions .btn-use{flex:1;background:#2BD38A;color:#0E2A1C}
+  .result-actions .btn-use:hover{background:#25BE7B}
+  .result-actions .btn-retry{background:rgba(255,255,255,.12);color:#fff}
+  .auto-bar{height:3px;border-radius:3px;background:rgba(255,255,255,.1);margin-top:10px;overflow:hidden}
+  .auto-bar i{display:block;height:100%;width:0;background:#2BD38A}
+  .auto-bar.run i{width:100%;transition:width 1s linear}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);opacity:0;pointer-events:none;z-index:200;background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:.86rem;font-weight:500;box-shadow:0 12px 30px -8px rgba(0,0,0,.4);transition:all .22s ease;max-width:calc(100vw - 32px)}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast.err{background:var(--danger)}
+  footer{max-width:1280px;margin:0 auto;padding:10px 24px 30px;display:flex;justify-content:space-between;font-size:.78rem;color:var(--mute)}
+
+  @media (max-width:980px){
+    .grid{grid-template-columns:1fr}
+  }
+  @media (max-width:700px){
+    .wrap{padding:16px 12px 8px}
+    .topbar-inner{padding:12px 14px;gap:12px}
+    .topbar .sub,.topbar .divider{display:none}
+    .brand-logo{height:28px}
+    .card-head{padding:14px 16px}
+    .card-head .hint{display:none}
+    .card-body{padding:16px}
+    .form-grid{grid-template-columns:1fr}
+    .seri-row{flex-direction:column}
+    .form-actions .btn{flex:1}
+    .toolbar .search,.toolbar .platform-filter{flex:1 1 100%;width:100%;min-width:0}
+    .toolbar .bilgi{flex:1;text-align:center}
+    .topbar h1{font-size:.88rem;line-height:1.25}
+    .chip{padding:5px 10px;font-size:.72rem}
+    /* tablo → kart */
+    thead{display:none}
+    table,tbody,tr,td{display:block;width:100%}
+    tbody tr{padding:12px 14px;border-bottom:1px solid var(--line)}
+    td{border:0;padding:3px 0;display:flex;justify-content:space-between;gap:12px;text-align:right}
+    td::before{content:attr(data-label);color:var(--mute);font-size:.75rem;font-weight:500;text-align:left;flex:none}
+    td.note{max-width:none;white-space:normal}
+    td.acts::before{content:none}
+    .actions{justify-content:flex-start;padding-top:8px}
+    footer{flex-direction:column;gap:4px;padding:10px 14px 24px}
+  }
+</style>
 </head>
 <body>
-<div class="container">
-    <h1>
-        <span>📦 Sipariş Takip</span>
-        <span class="sync-status" id="syncStatus">🟢 Bağlandı</span>
-    </h1>
 
-    <!-- ANA FORM -->
-    <div class="form-grid" id="formGrid">
-        <div class="form-group">
-            <label>Müşteri Adı *</label>
-            <input type="text" id="musteriAdi" placeholder="Ahmet Yılmaz" />
-        </div>
-        <div class="form-group">
-            <label>Sipariş No *</label>
-            <input type="text" id="siparisNo" placeholder="SP-2026-001" />
-        </div>
-        <div class="form-group">
-            <label>Platform</label>
-            <select id="platform">
+<header class="topbar">
+  <div class="topbar-inner">
+    <img class="brand-logo" alt="makerpazar" src="data:image/png;base64,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">
+    <span class="divider"></span>
+    <div>
+      <h1>Sipariş &amp; Seri No Takip</h1>
+      <div class="sub">Pazaryeri siparişleri · ürün seri numaraları · Firebase senkron</div>
+    </div>
+    <span class="chip wait" id="syncChip"><span class="dot"></span><span id="syncStatus">Bağlanıyor…</span></span>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <!-- ============ FORM ============ -->
+    <section class="card" id="formCard">
+      <div class="card-head"><span class="num">1</span><h2 id="formTitle">Yeni Kayıt</h2><span class="hint">Ctrl + Enter ile kaydet</span></div>
+      <div class="card-body">
+        <div class="form-grid" id="formGrid">
+          <div class="field">
+            <label for="musteriAdi">Müşteri Adı <span class="req">*</span></label>
+            <div class="input-wrap">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+              <input type="text" id="musteriAdi" placeholder="Ahmet Yılmaz" autocomplete="off" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="siparisNo">Sipariş No <span class="req">*</span></label>
+            <div class="input-wrap">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>
+              <input type="text" id="siparisNo" class="mono" placeholder="SP-2026-001" autocomplete="off" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="platform">Platform</label>
+            <div class="input-wrap">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9 5 4h14l2 5M3 9h18v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0zM5 13v7h14v-7"/></svg>
+              <select id="platform">
                 <option value="Makerpazar.com">Makerpazar.com</option>
                 <option value="hepsiburada">hepsiburada</option>
                 <option value="pazarama">pazarama</option>
-                <option value="Mağza">Mağza</option>
+                <option value="Mağza">Mağaza</option>
                 <option value="Trendyol">Trendyol</option>
                 <option value="n11">n11</option>
                 <option value="Amazon">Amazon</option>
                 <option value="idefix">idefix</option>
                 <option value="Diğer">Diğer</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Ürün Adı</label>
-            <div class="input-wrapper">
-                <input type="text" id="urunAdi" placeholder="Ürün adını yazın, öneriler çıkacak..." autocomplete="off" />
-                <div class="autocomplete-list" id="urunAutocompleteList"></div>
+              </select>
             </div>
-        </div>
-        
-        <!-- ÜRÜN MENÜSÜ -->
-        <div class="urun-menu-container">
-            <div class="urun-menu-header" id="menuToggle">
-                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <h3>📋 Ürün Listesi</h3>
-                    <span class="urun-count" id="urunCount">0 ürün</span>
-                    <span class="sync-badge synced" id="urunSyncBadge">✅ Senkron</span>
-                </div>
-                <span class="arrow" id="menuArrow">▼</span>
+          </div>
+          <div class="field">
+            <label for="urunAdi">Ürün Adı</label>
+            <div class="input-wrap">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>
+              <input type="text" id="urunAdi" placeholder="Yazın, öneriler çıkar…" autocomplete="off" />
+              <div class="ac-list" id="urunAutocompleteList"></div>
             </div>
-            <div class="urun-menu-body" id="menuBody">
-                <div class="urun-ekle-alani">
-                    <input type="text" id="yeniUrunAdi" placeholder="Yeni ürün adı..." />
-                    <button class="btn-urun-ekle" id="urunEkleBtn">➕ Ekle</button>
-                    <button class="btn-sync" id="syncBtn">🔄 Senkron</button>
-                    <button class="btn-reset" id="resetBtn">🗑️ Sıfırla</button>
-                </div>
-                <div class="urun-listesi" id="urunListesi">
-                    <span style="color:#9ca3af; font-size:0.85rem;">Henüz ürün eklenmemiş</span>
-                </div>
-            </div>
-        </div>
-        
-        <!-- SERİ NUMARASI -->
-        <div class="seri-panel">
-            <div class="seri-panel-header">
-                <h3>🔢 Seri Numarası</h3>
-            </div>
-            
-            <div class="seri-input-group">
-                <div class="input-wrapper">
-                    <input type="text" id="seriInput" placeholder="Seri numarasını girin veya barkod/QR okutun..." autocomplete="off" />
-                    <div class="autocomplete-list" id="seriAutocompleteList"></div>
-                </div>
-                <button class="btn btn-scan" id="scanBtn">📷 Barkod / QR</button>
-            </div>
-            
-            <div class="seri-info">
-                💡 Her ürüne sadece 1 seri numarası eklenebilir.
-            </div>
-        </div>
-        
-        <div class="form-group full-width">
-            <label>Tarih</label>
-            <input type="datetime-local" id="tarih" />
-        </div>
-        
-        <div class="form-group full-width">
-            <label>Not</label>
-            <textarea id="not" rows="2" placeholder="Ek notlar..."></textarea>
-        </div>
-        <div class="form-group full-width" style="flex-direction:row; gap:12px; align-items:center; flex-wrap:wrap;">
-            <button class="btn" id="kaydetBtn">💾 Kaydet</button>
-            <button class="btn btn-warning" id="vazgecBtn" style="display:none;">↩️ Vazgeç</button>
-            <span id="editIndex" style="background:#f0ad4e; padding:4px 14px; border-radius:40px; font-weight:600;">Düzenleniyor...</span>
-        </div>
-    </div>
+          </div>
 
-    <!-- ARAMA -->
-    <div class="flex-row">
-        <input type="text" class="search-box" id="aramaInput" placeholder="🔍 Müşteri, Sipariş No veya Ürün ile ara..." />
-        <button class="btn btn-success" id="temizleBtn" style="background:#6c7a92;">Temizle</button>
+          <!-- SERİ NUMARASI -->
+          <div class="seri-panel full">
+            <div class="field">
+              <label for="seriInput">Seri Numarası</label>
+              <div class="seri-row">
+                <div class="input-wrap">
+                  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5h3M17 5h3v2M20 17v2h-3M7 19H4v-2M8 9v6M11 9v6M14 9v6M17 9v6"/></svg>
+                  <input type="text" id="seriInput" class="mono" placeholder="Seri no yazın veya okutun…" autocomplete="off" />
+                </div>
+                <button class="btn btn-scan" id="scanBtn" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg>
+                  Barkod / QR
+                </button>
+              </div>
+              <div class="warn-text" id="seriWarn"></div>
+              <div class="seri-info">Her ürüne yalnızca 1 seri numarası eklenir. El tipi barkod okuyucu da bu alana doğrudan yazar.</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="tarih">Tarih</label>
+            <div class="input-wrap">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+              <input type="datetime-local" id="tarih" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="not">Not <span class="opt">(opsiyonel)</span></label>
+            <div class="input-wrap top">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>
+              <textarea id="not" rows="2" placeholder="Ek notlar…"></textarea>
+            </div>
+          </div>
+
+          <div class="form-actions full">
+            <button class="btn btn-primary" id="kaydetBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/></svg>
+              <span id="kaydetText">Kaydet</span> <kbd>Ctrl+Enter</kbd>
+            </button>
+            <button class="btn btn-ghost" id="vazgecBtn" type="button" style="display:none">Vazgeç</button>
+            <span class="edit-pill" id="editIndex">Düzenleniyor…</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ÜRÜN LİSTESİ ============ -->
+    <section class="card">
+      <div class="card-head prod-head" id="menuToggle">
+        <span class="num">2</span><h2>Ürün Listesi</h2>
+        <span class="count" id="urunCount">0 ürün</span>
+        <span class="sync-badge synced" id="urunSyncBadge">Senkron</span>
+        <span class="arrow" id="menuArrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></span>
+      </div>
+      <div class="card-body prod-body" id="menuBody">
+        <div class="prod-add">
+          <div class="input-wrap">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            <input type="text" id="yeniUrunAdi" placeholder="Yeni ürün adı…" autocomplete="off" />
+          </div>
+          <button class="btn btn-ok btn-sm" id="urunEkleBtn" type="button">Ekle</button>
+        </div>
+        <div class="prod-filter input-wrap">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input type="search" id="urunFiltre" placeholder="Listede ara…" autocomplete="off" />
+        </div>
+        <div class="urun-listesi" id="urunListesi"><span class="prod-empty">Henüz ürün eklenmemiş</span></div>
+        <div class="prod-tools">
+          <button class="btn btn-ghost btn-sm" id="syncBtn" type="button" title="Listeyi tekrar Firebase'e yaz (tekrarlananları temizler)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>
+            Senkron
+          </button>
+          <button class="btn btn-ghost btn-sm danger" id="resetBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+            Sıfırla
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ KAYITLAR ============ -->
+  <section class="card list-card">
+    <div class="card-head"><span class="num">3</span><h2>Kayıtlar</h2><span class="hint">Seri numarasına tıklayınca kopyalanır</span></div>
+    <div class="card-body">
+      <div class="toolbar">
+        <div class="input-wrap search">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input type="text" id="aramaInput" placeholder="Müşteri, sipariş no, ürün veya seri no ile ara…" autocomplete="off" />
+          <button class="inline-btn" id="temizleBtn" type="button">Temizle</button>
+        </div>
+        <div class="input-wrap platform-filter">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></svg>
+          <select id="platformFiltre"><option value="">Tüm platformlar</option></select>
+        </div>
         <span class="bilgi" id="kayitSayisi">Toplam: 0 kayıt</span>
-        <button class="btn btn-danger" id="yenileBtn" style="background:#17a2b8; min-width:auto; padding:10px 20px;">🔄 Yenile</button>
-    </div>
+        <button class="btn btn-ghost btn-sm" id="csvBtn" type="button" title="Listelenen kayıtları Excel uyumlu CSV olarak indir">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>
+          CSV
+        </button>
+        <button class="btn btn-ghost btn-sm" id="yenileBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>
+          Yenile
+        </button>
+      </div>
 
-    <!-- TABLO -->
-    <div style="overflow-x:auto;">
+      <div class="table-wrap">
         <table>
-            <thead>
-                <tr>
-                    <th>Müşteri</th>
-                    <th>Sipariş No</th>
-                    <th>Platform</th>
-                    <th>Ürün</th>
-                    <th>Seri No</th>
-                    <th>Tarih</th>
-                    <th>Not</th>
-                    <th style="min-width:90px;">İşlem</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody">
-                <tr class="empty-row"><td colspan="8">Yükleniyor...</td></tr>
-            </tbody>
+          <thead>
+            <tr>
+              <th class="sortable" data-sort="musteri">Müşteri<span class="s">↕</span></th>
+              <th class="sortable sorted" data-sort="siparisNo">Sipariş No<span class="s">↑</span></th>
+              <th class="sortable" data-sort="platform">Platform<span class="s">↕</span></th>
+              <th class="sortable" data-sort="urun">Ürün<span class="s">↕</span></th>
+              <th>Seri No</th>
+              <th class="sortable" data-sort="tarih">Tarih<span class="s">↕</span></th>
+              <th>Not</th>
+              <th style="text-align:right">İşlem</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr class="empty-row"><td colspan="8">Yükleniyor…</td></tr>
+          </tbody>
         </table>
+      </div>
     </div>
+  </section>
 </div>
 
-<!-- SCAN MODAL -->
+<footer>
+  <span>makerpazar · Sipariş &amp; Seri No Takip</span>
+  <span>Veriler Firebase Realtime Database'de tüm cihazlarla senkron</span>
+</footer>
+
+<!-- ============ TARAYICI ============ -->
 <div class="scan-modal" id="scanModal">
-    <div class="scan-modal-content">
-        <div class="header">
-            <h3>📷 Barkod / QR Okuyucu</h3>
-            <button class="close-btn" id="scanCloseBtn">&times;</button>
-        </div>
-        
-        <div class="scan-methods">
-            <button id="methodAuto" class="active">🔄 Otomatik</button>
-            <button id="methodQR">📱 QR</button>
-            <button id="methodBarcode">📊 Barkod</button>
-        </div>
-        
-        <div id="scanner-container"></div>
-        
-        <div class="scan-status" id="scanStatus">📱 Barkod veya QR kodu kameraya gösterin...</div>
-        
-        <div class="scan-result" id="scanResult">
-            <div class="result-label">📝 OKUNAN DEĞER</div>
-            <div class="result-text" id="scanResultText"></div>
-            <div class="result-edit">
-                <input type="text" id="scanResultEdit" placeholder="Yanlışsa düzeltin..." />
-            </div>
-            <div class="result-actions">
-                <button class="btn-use" id="scanUseBtn">✅ Kullan</button>
-                <button class="btn-retry" id="scanRetryBtn">🔄 Tekrar Dene</button>
-            </div>
-        </div>
+  <div class="scan-card">
+    <div class="header">
+      <h3>Barkod / QR Okuyucu</h3>
+      <button class="close-btn" id="scanCloseBtn" aria-label="Kapat">×</button>
     </div>
+    <div class="scan-methods">
+      <button id="methodAuto" class="active" type="button">Otomatik</button>
+      <button id="methodQR" type="button">QR</button>
+      <button id="methodBarcode" type="button">Barkod</button>
+    </div>
+    <div id="scanner-container"></div>
+    <div class="scan-status" id="scanStatus">Barkod veya QR kodu kameraya gösterin…</div>
+    <div class="scan-result" id="scanResult">
+      <div class="result-label">Okunan değer — yanlışsa düzeltin</div>
+      <input type="text" id="scanResultEdit" />
+      <div class="auto-bar" id="autoBar"><i></i></div>
+      <div class="result-actions">
+        <button class="btn btn-use" id="scanUseBtn" type="button">Kullan</button>
+        <button class="btn btn-retry" id="scanRetryBtn" type="button">Tekrar Dene</button>
+      </div>
+    </div>
+  </div>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <script>
-    // ============================================
-    // FIREBASE KONFIGÜRASYONU
-    // ============================================
-   const firebaseConfig = {
-  apiKey: "AIzaSyAqW9K9vNfo8PnXy1CzbVwvdWy16TSZ7CY",
-  authDomain: "urunserinumarasi.firebaseapp.com",
-  databaseURL: "https://urunserinumarasi-default-rtdb.firebaseio.com",
-  projectId: "urunserinumarasi",
-  storageBucket: "urunserinumarasi.firebasestorage.app",
-  messagingSenderId: "562213524738",
-  appId: "1:562213524738:web:5c3a8825d61ed2dc925e1b"
-};
+  // ============================================
+  // FIREBASE KONFIGÜRASYONU
+  // ============================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyAqW9K9vNfo8PnXy1CzbVwvdWy16TSZ7CY",
+    authDomain: "urunserinumarasi.firebaseapp.com",
+    databaseURL: "https://urunserinumarasi-default-rtdb.firebaseio.com",
+    projectId: "urunserinumarasi",
+    storageBucket: "urunserinumarasi.firebasestorage.app",
+    messagingSenderId: "562213524738",
+    appId: "1:562213524738:web:5c3a8825d61ed2dc925e1b"
+  };
 
+  let database = null;
+  try {
     firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    database = firebase.database();
+  } catch (e) {
+    console.error('Firebase başlatılamadı:', e);
+  }
 
-    // ============================================
-    // UYGULAMA
-    // ============================================
-    let siparisler = [];
-    let editMode = false;
-    let editKey = null;
-    let html5Scanner = null;
-    let isScanning = false;
-    let currentMethod = 'auto';
-    let urunler = [];
-    let isSyncing = false;
-    let isFirstLoad = true;
+  // ============================================
+  // DURUM
+  // ============================================
+  let siparisler = [];
+  let editMode = false;
+  let editKey = null;
+  let urunMap = {};          // firebaseKey → ürün adı
+  let urunler = [];          // alfabetik ürün adları
+  let siparisRef = null, urunRef = null;
+  let sortKey = 'siparisNo', sortDir = 1;
 
-    // DOM
-    const musteriAdi = document.getElementById('musteriAdi');
-    const siparisNo = document.getElementById('siparisNo');
-    const platform = document.getElementById('platform');
-    const urunAdi = document.getElementById('urunAdi');
-    const not = document.getElementById('not');
-    const tarih = document.getElementById('tarih');
-    const seriInput = document.getElementById('seriInput');
-    const kaydetBtn = document.getElementById('kaydetBtn');
-    const vazgecBtn = document.getElementById('vazgecBtn');
-    const editIndexSpan = document.getElementById('editIndex');
-    const aramaInput = document.getElementById('aramaInput');
-    const temizleBtn = document.getElementById('temizleBtn');
-    const yenileBtn = document.getElementById('yenileBtn');
-    const tableBody = document.getElementById('tableBody');
-    const kayitSayisi = document.getElementById('kayitSayisi');
-    const syncStatus = document.getElementById('syncStatus');
-    
-    // Ürün Menüsü
-    const menuToggle = document.getElementById('menuToggle');
-    const menuBody = document.getElementById('menuBody');
-    const menuArrow = document.getElementById('menuArrow');
-    const urunListesi = document.getElementById('urunListesi');
-    const urunCount = document.getElementById('urunCount');
-    const urunSyncBadge = document.getElementById('urunSyncBadge');
-    const yeniUrunAdi = document.getElementById('yeniUrunAdi');
-    const urunEkleBtn = document.getElementById('urunEkleBtn');
-    const syncBtn = document.getElementById('syncBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    const urunAutocompleteList = document.getElementById('urunAutocompleteList');
-    const seriAutocompleteList = document.getElementById('seriAutocompleteList');
-    
-    // Scan Elementleri
-    const scanModal = document.getElementById('scanModal');
-    const scanCloseBtn = document.getElementById('scanCloseBtn');
-    const scanStatus = document.getElementById('scanStatus');
-    const scanBtn = document.getElementById('scanBtn');
-    const scanResult = document.getElementById('scanResult');
-    const scanResultText = document.getElementById('scanResultText');
-    const scanResultEdit = document.getElementById('scanResultEdit');
-    const scanUseBtn = document.getElementById('scanUseBtn');
-    const scanRetryBtn = document.getElementById('scanRetryBtn');
-    const scannerContainer = document.getElementById('scanner-container');
-    const methodAuto = document.getElementById('methodAuto');
-    const methodQR = document.getElementById('methodQR');
-    const methodBarcode = document.getElementById('methodBarcode');
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const lower = s => String(s ?? '').toLocaleLowerCase('tr-TR');
 
-    let lastScanResult = '';
-    let urunRef = null;
+  const musteriAdi = $('musteriAdi'), siparisNo = $('siparisNo'), platform = $('platform'), urunAdi = $('urunAdi');
+  const not = $('not'), tarih = $('tarih'), seriInput = $('seriInput');
+  const kaydetBtn = $('kaydetBtn'), vazgecBtn = $('vazgecBtn'), editIndexSpan = $('editIndex');
+  const aramaInput = $('aramaInput'), tableBody = $('tableBody'), kayitSayisi = $('kayitSayisi');
+  const urunListesi = $('urunListesi'), urunCount = $('urunCount'), urunSyncBadge = $('urunSyncBadge');
+  const yeniUrunAdi = $('yeniUrunAdi'), syncBtn = $('syncBtn');
 
-    // ============================================
-    // YARDIMCI FONKSİYONLAR
-    // ============================================
-    function formatDateForDisplay(dateStr) {
-        if (!dateStr) return '—';
-        try {
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return dateStr;
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            return `${day}.${month}.${year} ${hours}:${minutes}`;
-        } catch {
-            return dateStr;
-        }
-    }
+  function toast(msg, type = '', ms = 2400){
+    const t = $('toast'); t.textContent = msg; t.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), ms);
+  }
+  function beep(){
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination); o.frequency.value = 2200;
+      g.gain.setValueAtTime(.35, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + .12);
+      o.start(); o.stop(ctx.currentTime + .12);
+    } catch(e){}
+    try { navigator.vibrate && navigator.vibrate(60); } catch(e){}
+  }
+  function requireDb(){
+    if (!database){ toast('Firebase bağlantısı yok — işlem yapılamadı', 'err', 3500); return false; }
+    return true;
+  }
 
-    function setDefaultDate() {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        tarih.value = `${year}-${month}-${day}T${hours}:${minutes}`;
-    }
+  // ============================================
+  // TARİH
+  // ============================================
+  const pad = n => String(n).padStart(2, '0');
+  function toLocalInput(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+  function formatDateForDisplay(s){
+    if (!s) return '';
+    const d = new Date(s);
+    return isNaN(d) ? s : `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function setDefaultDate(){ tarih.value = toLocalInput(new Date()); }
 
-    function updateSyncBadge(status) {
-        if (status === 'synced') {
-            urunSyncBadge.textContent = '✅ Senkron';
-            urunSyncBadge.className = 'sync-badge synced';
-        } else if (status === 'syncing') {
-            urunSyncBadge.textContent = '⏳ Senkron...';
-            urunSyncBadge.className = 'sync-badge syncing';
-        } else if (status === 'error') {
-            urunSyncBadge.textContent = '❌ Hata';
-            urunSyncBadge.className = 'sync-badge error';
-        }
-    }
+  // ============================================
+  // BAĞLANTI DURUMU
+  // ============================================
+  function setSync(state, text){
+    $('syncChip').className = 'chip' + (state === 'ok' ? '' : state === 'wait' ? ' wait' : ' off');
+    $('syncStatus').textContent = text;
+  }
+  function updateSyncBadge(status){
+    urunSyncBadge.className = 'sync-badge ' + status;
+    urunSyncBadge.textContent = status === 'synced' ? 'Senkron' : status === 'syncing' ? 'Kaydediliyor…' : 'Hata';
+  }
 
-    // ============================================
-    // FIREBASE ÜRÜN İŞLEMLERİ
-    // ============================================
-    function urunleriFirebaseYukle() {
-        if (urunRef) {
-            urunRef.off();
-        }
-        
-        urunRef = database.ref('urunler');
-        urunRef.on('value', (snapshot) => {
-            const data = snapshot.val();
-            
-            if (data) {
-                const firebaseUrunler = Object.values(data).filter(u => typeof u === 'string' && u.trim() !== '');
-                
-                if (firebaseUrunler.length > 0) {
-                    const currentSorted = [...urunler].sort();
-                    const firebaseSorted = [...firebaseUrunler].sort();
-                    
-                    if (JSON.stringify(currentSorted) !== JSON.stringify(firebaseSorted)) {
-                        urunler = firebaseUrunler;
-                        urunleriGoster();
-                        updateSyncBadge('synced');
-                        console.log('📦 Ürünler Firebase\'den güncellendi:', urunler.length);
-                    }
-                } else {
-                    urunler = [];
-                    urunleriGoster();
-                }
-            } else {
-                if (isFirstLoad) {
-                    const defaultUrunler = [
-                        'iPhone 15 Pro', 'iPhone 15 Pro Max', 'iPhone 15',
-                        'Samsung Galaxy S24 Ultra', 'Samsung Galaxy S24',
-                        'MacBook Pro M3', 'MacBook Air M3',
-                        'iPad Pro', 'iPad Air',
-                        'Apple Watch Ultra 2', 'Apple Watch Series 9',
-                        'AirPods Pro 2', 'AirPods Max',
-                        'PlayStation 5', 'Xbox Series X',
-                        'Dell XPS 13', 'Lenovo ThinkPad X1'
-                    ];
-                    urunler = defaultUrunler;
-                    urunleriGoster();
-                    urunleriFirebaseKaydet();
-                    isFirstLoad = false;
-                }
-            }
-        }, (error) => {
-            console.error('Ürünler yüklenirken hata:', error);
-            updateSyncBadge('error');
-        });
-    }
-
-    function urunleriFirebaseKaydet() {
-        if (isSyncing) return;
-        isSyncing = true;
-        syncBtn.disabled = true;
-        updateSyncBadge('syncing');
-        
-        const ref = database.ref('urunler');
-        const updates = {};
-        urunler.forEach((urun, index) => {
-            const key = `urun_${Date.now()}_${index}`;
-            updates[key] = urun;
-        });
-        
-        ref.set(updates)
-            .then(() => {
-                updateSyncBadge('synced');
-                isSyncing = false;
-                syncBtn.disabled = false;
-                console.log('✅ Ürünler Firebase\'e kaydedildi!', urunler.length);
-            })
-            .catch((error) => {
-                console.error('Ürünler kaydedilirken hata:', error);
-                updateSyncBadge('error');
-                isSyncing = false;
-                syncBtn.disabled = false;
-                alert('❌ Firebase\'e kaydedilirken hata oluştu: ' + error.message);
-            });
-    }
-
-    // ============================================
-    // ÜRÜN YÖNETİMİ
-    // ============================================
-    function urunleriGoster() {
-        urunListesi.innerHTML = '';
-        
-        if (urunler.length === 0) {
-            urunListesi.innerHTML = '<span style="color:#9ca3af; font-size:0.85rem;">Henüz ürün eklenmemiş</span>';
-            urunCount.textContent = '0 ürün';
-            return;
-        }
-        
-        urunler.forEach((urun, index) => {
-            const span = document.createElement('span');
-            span.className = 'urun-item';
-            span.innerHTML = `
-                ${urun}
-                <button class="urun-ekle-btn" data-index="${index}" title="Ürün adına ekle">📋</button>
-                <button class="urun-sil-btn" data-index="${index}" title="Sil">×</button>
-            `;
-            
-            span.querySelector('.urun-ekle-btn').addEventListener('click', function(e) {
-                e.stopPropagation();
-                const idx = parseInt(this.dataset.index);
-                urunAdi.value = urunler[idx];
-                urunAdi.focus();
-                urunAutocompleteList.classList.remove('active');
-            });
-            
-            span.querySelector('.urun-sil-btn').addEventListener('click', function(e) {
-                e.stopPropagation();
-                const idx = parseInt(this.dataset.index);
-                if (confirm(`"${urunler[idx]}" ürününü silmek istediğinize emin misiniz?`)) {
-                    urunler.splice(idx, 1);
-                    urunleriGoster();
-                    urunleriFirebaseKaydet();
-                }
-            });
-            
-            span.addEventListener('click', function() {
-                const idx = parseInt(this.dataset.index);
-                urunAdi.value = urunler[idx];
-                urunAdi.focus();
-                urunAutocompleteList.classList.remove('active');
-            });
-            
-            urunListesi.appendChild(span);
-        });
-        
-        urunCount.textContent = `${urunler.length} ürün`;
-    }
-
-    function urunEkle(ad) {
-        if (!ad || ad.trim() === '') {
-            alert('Lütfen ürün adını girin.');
-            return false;
-        }
-        ad = ad.trim();
-        if (urunler.includes(ad)) {
-            alert('Bu ürün zaten listede var!');
-            return false;
-        }
-        urunler.push(ad);
-        urunleriGoster();
-        urunleriFirebaseKaydet();
-        return true;
-    }
-
-    function urunleriSifirla() {
-        if (confirm('Tüm ürünleri silmek istediğinize emin misiniz? Bu işlem geri alınamaz!')) {
-            if (confirm('Tekrar emin misiniz? Tüm ürünler kalıcı olarak silinecek!')) {
-                urunler = [];
-                urunleriGoster();
-                urunleriFirebaseKaydet();
-                alert('✅ Tüm ürünler silindi!');
-            }
-        }
-    }
-
-    // ============================================
-    // OTOMATİK TAMAMLAMA
-    // ============================================
-    function autoCompleteSearch(input, list, source) {
-        const query = input.value.trim();
-        if (!query || query.length < 1) {
-            list.classList.remove('active');
-            return;
-        }
-        
-        const queryLower = query.toLowerCase();
-        const results = source.filter(u => 
-            u.toLowerCase().includes(queryLower)
-        );
-        
-        if (results.length === 0) {
-            list.classList.remove('active');
-            return;
-        }
-        
-        list.innerHTML = '';
-        results.forEach(urun => {
-            const div = document.createElement('div');
-            div.className = 'autocomplete-item';
-            div.textContent = urun;
-            div.addEventListener('click', function() {
-                input.value = urun;
-                list.classList.remove('active');
-                input.focus();
-            });
-            list.appendChild(div);
-        });
-        
-        list.classList.add('active');
-    }
-
-    // ============================================
-    // BARKOD / QR SCANNER
-    // ============================================
-    function getScannerConfig() {
-        const config = {
-            fps: 15,
-            qrbox: { width: 280, height: 280 },
-            aspectRatio: 1.0
-        };
-
-        if (currentMethod === 'barcode') {
-            config.qrbox = { width: 320, height: 120 };
-            config.aspectRatio = 4/3;
-        } else if (currentMethod === 'qr') {
-            config.qrbox = { width: 250, height: 250 };
-            config.aspectRatio = 1.0;
-        }
-
-        return config;
-    }
-
-    async function startScanner() {
-        if (isScanning) return;
-        
-        scanStatus.textContent = '📱 Kameraya erişim sağlanıyor...';
-        scanStatus.className = 'scan-status';
-        scannerContainer.innerHTML = '';
-        
-        try {
-            html5Scanner = new Html5Qrcode("scanner-container");
-            
-            const config = getScannerConfig();
-            
-            isScanning = true;
-            
-            await html5Scanner.start(
-                { facingMode: "environment" },
-                config,
-                onScanSuccess,
-                onScanError
-            );
-            
-            const methodText = currentMethod === 'auto' ? 'Barkod / QR' : 
-                               currentMethod === 'qr' ? 'QR Kod' : 'Barkod';
-            scanStatus.textContent = `📷 ${methodText} kameraya gösterin...`;
-            scanStatus.className = 'scan-status';
-            
-        } catch (err) {
-            console.error('Scanner başlatma hatası:', err);
-            scanStatus.textContent = '❌ Kamera başlatılamadı: ' + err.message;
-            scanStatus.className = 'scan-status error';
-            isScanning = false;
-        }
-    }
-
-    function onScanSuccess(decodedText) {
-        scanStatus.textContent = `✅ Okundu!`;
-        scanStatus.className = 'scan-status success';
-        
-        lastScanResult = decodedText;
-        scanResultText.textContent = decodedText;
-        scanResultEdit.value = decodedText;
-        scanResult.classList.add('active');
-        
-        setTimeout(() => {
-            useScanResult();
-        }, 1000);
-    }
-
-    function onScanError(errorMessage) {}
-
-    function stopScanner() {
-        if (html5Scanner && isScanning) {
-            try {
-                html5Scanner.stop().then(() => {
-                    html5Scanner.clear();
-                    isScanning = false;
-                    scannerContainer.innerHTML = '';
-                }).catch(err => {
-                    console.error('Scanner durdurma hatası:', err);
-                    isScanning = false;
-                    scannerContainer.innerHTML = '';
-                });
-            } catch (e) {
-                isScanning = false;
-                scannerContainer.innerHTML = '';
-            }
-        } else {
-            scannerContainer.innerHTML = '';
-            isScanning = false;
-        }
-    }
-
-    // ============================================
-    // SCAN MODAL KONTROLLERİ
-    // ============================================
-    function openScanModal() {
-        scanModal.classList.add('active');
-        scanResult.classList.remove('active');
-        scanStatus.textContent = '📱 Kameraya erişim sağlanıyor...';
-        scanStatus.className = 'scan-status';
-        lastScanResult = '';
-        
-        methodAuto.classList.toggle('active', currentMethod === 'auto');
-        methodQR.classList.toggle('active', currentMethod === 'qr');
-        methodBarcode.classList.toggle('active', currentMethod === 'barcode');
-        
-        startScanner();
-    }
-
-    function closeScanModal() {
-        stopScanner();
-        scanModal.classList.remove('active');
-        scanResult.classList.remove('active');
-        scanStatus.textContent = '📱 Barkod veya QR kodu kameraya gösterin...';
-        scanStatus.className = 'scan-status';
-    }
-
-    function useScanResult() {
-        const val = scanResultEdit.value.trim();
-        if (val) {
-            seriInput.value = val;
-            closeScanModal();
-        } else {
-            alert('Lütfen geçerli bir değer girin.');
-        }
-    }
-
-    function changeMethod(method) {
-        if (currentMethod === method) return;
-        currentMethod = method;
-        
-        methodAuto.classList.toggle('active', method === 'auto');
-        methodQR.classList.toggle('active', method === 'qr');
-        methodBarcode.classList.toggle('active', method === 'barcode');
-        
-        stopScanner();
-        setTimeout(() => {
-            startScanner();
-        }, 300);
-        
-        scanResult.classList.remove('active');
-    }
-
-    // ============================================
-    // FORM İŞLEMLERİ
-    // ============================================
-    function formuTemizle() {
-        musteriAdi.value = '';
-        siparisNo.value = '';
-        platform.value = 'Makerpazar.com';
-        urunAdi.value = '';
-        seriInput.value = '';
-        not.value = '';
-        setDefaultDate();
-        editMode = false;
-        editKey = null;
-        vazgecBtn.style.display = 'none';
-        editIndexSpan.style.display = 'none';
-        kaydetBtn.textContent = '💾 Kaydet';
-        urunAutocompleteList.classList.remove('active');
-        seriAutocompleteList.classList.remove('active');
-    }
-
-    // ============================================
-    // FIREBASE SİPARİŞ İŞLEMLERİ - VERİ DÖNÜŞÜMÜ EKLENDİ
-    // ============================================
-    function verileriYukle() {
-        syncStatus.textContent = '⏳ Yükleniyor...';
-        syncStatus.className = 'sync-status';
-        
-        const ref = database.ref('siparisler');
-        ref.on('value', (snapshot) => {
-            const data = snapshot.val();
-            siparisler = [];
-            if (data) {
-                Object.keys(data).forEach(key => {
-                    const item = data[key];
-                    
-                    // Eski veri formatını (seriListesi) yeni formata (seri) dönüştür
-                    let seriDegeri = '';
-                    if (item.seri) {
-                        seriDegeri = item.seri;
-                    } else if (item.seriListesi && Array.isArray(item.seriListesi) && item.seriListesi.length > 0) {
-                        // Eski format: seriListesi dizisinden ilk elemanı al
-                        seriDegeri = item.seriListesi[0] || '';
-                    }
-                    
-                    siparisler.push({
-                        key: key,
-                        musteri: item.musteri || '',
-                        siparisNo: item.siparisNo || '',
-                        platform: item.platform || '',
-                        urun: item.urun || '',
-                        seri: seriDegeri,
-                        tarih: item.tarih || '',
-                        not: item.not || ''
-                    });
-                });
-                siparisler.sort((a, b) => a.siparisNo.localeCompare(b.siparisNo));
-            }
-            listeyiGoster();
-            syncStatus.textContent = '🟢 Bağlandı';
-            syncStatus.className = 'sync-status';
-        }, (error) => {
-            console.error('Veri yükleme hatası:', error);
-            syncStatus.textContent = '🔴 Bağlantı Hatası';
-            syncStatus.className = 'sync-status offline';
-            tableBody.innerHTML = `<tr class="empty-row"><td colspan="8">❌ Veri yüklenemedi: ${error.message}</td></tr>`;
-        });
-    }
-
-    function kaydetFirebase(data) {
-        const ref = database.ref('siparisler');
-        const newRef = ref.push();
-        return newRef.set(data);
-    }
-
-    function guncelleFirebase(key, data) {
-        const ref = database.ref(`siparisler/${key}`);
-        return ref.update(data);
-    }
-
-    function silFirebase(key) {
-        const ref = database.ref(`siparisler/${key}`);
-        return ref.remove();
-    }
-
-    // ============================================
-    // LİSTELEME
-    // ============================================
-    function listeyiGoster(veri) {
-        const liste = veri || siparisler;
-        tableBody.innerHTML = '';
-        
-        if (liste.length === 0) {
-            tableBody.innerHTML = `<tr class="empty-row"><td colspan="8">📭 Kayıt bulunamadı.</td></tr>`;
-            kayitSayisi.textContent = `Toplam: 0 kayıt`;
-            return;
-        }
-
-        liste.forEach((item) => {
-            const tr = document.createElement('tr');
-            const tarihText = item.tarih ? `<span class="badge badge-tarih">${formatDateForDisplay(item.tarih)}</span>` : '—';
-
-            tr.innerHTML = `
-                <td><strong>${item.musteri || ''}</strong></td>
-                <td>${item.siparisNo || ''}</td>
-                <td><span class="badge">${item.platform || ''}</span></td>
-                <td>${item.urun || ''}</td>
-                <td><span class="badge badge-seri">${item.seri || '—'}</span></td>
-                <td>${tarihText}</td>
-                <td style="max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.not || ''}</td>
-                <td>
-                    <div class="actions">
-                        <button class="btn-edit" data-key="${item.key}">✏️</button>
-                        <button class="btn-del" data-key="${item.key}">🗑️</button>
-                    </div>
-                </td>
-            `;
-            tableBody.appendChild(tr);
-        });
-
-        document.querySelectorAll('.btn-edit').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const key = this.dataset.key;
-                duzenle(key);
-            });
-        });
-        document.querySelectorAll('.btn-del').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const key = this.dataset.key;
-                if (confirm('Bu kaydı silmek istediğinize emin misiniz?')) {
-                    silFirebase(key)
-                        .catch(err => alert('Silme hatası: ' + err.message));
-                }
-            });
-        });
-
-        kayitSayisi.textContent = `Toplam: ${liste.length} kayıt`;
-    }
-
-    function aramaYap() {
-        const terim = aramaInput.value.trim().toLowerCase();
-        if (terim === '') {
-            listeyiGoster(siparisler);
-            return;
-        }
-        const sonuc = siparisler.filter(item => {
-            const musteriEslesir = item.musteri.toLowerCase().includes(terim);
-            const siparisEslesir = item.siparisNo.toLowerCase().includes(terim);
-            const urunEslesir = item.urun.toLowerCase().includes(terim);
-            const seriEslesir = item.seri.toLowerCase().includes(terim);
-            return musteriEslesir || siparisEslesir || urunEslesir || seriEslesir;
-        });
-        listeyiGoster(sonuc);
-    }
-
-    // ============================================
-    // CRUD İŞLEMLERİ
-    // ============================================
-    function yeniKayit() {
-        const musteri = musteriAdi.value.trim();
-        const siparis = siparisNo.value.trim();
-        if (!musteri || !siparis) {
-            alert('Müşteri Adı ve Sipariş No zorunludur!');
-            return;
-        }
-
-        const data = {
-            musteri: musteri,
-            siparisNo: siparis,
-            platform: platform.value,
-            urun: urunAdi.value.trim(),
-            seri: seriInput.value.trim(),
-            tarih: tarih.value || '',
-            not: not.value.trim(),
-            timestamp: Date.now()
-        };
-
-        kaydetFirebase(data)
-            .then(() => {
-                formuTemizle();
-            })
-            .catch(err => {
-                alert('Kayıt hatası: ' + err.message);
-            });
-    }
-
-    function duzenle(key) {
-        const item = siparisler.find(s => s.key === key);
-        if (!item) return;
-        
-        editMode = true;
-        editKey = key;
-
-        musteriAdi.value = item.musteri || '';
-        siparisNo.value = item.siparisNo || '';
-        platform.value = item.platform || 'Makerpazar.com';
-        urunAdi.value = item.urun || '';
-        seriInput.value = item.seri || '';
-        not.value = item.not || '';
-        
-        if (item.tarih) {
-            try {
-                const date = new Date(item.tarih);
-                if (!isNaN(date.getTime())) {
-                    const year = date.getFullYear();
-                    const month = String(date.getMonth() + 1).padStart(2, '0');
-                    const day = String(date.getDate()).padStart(2, '0');
-                    const hours = String(date.getHours()).padStart(2, '0');
-                    const minutes = String(date.getMinutes()).padStart(2, '0');
-                    tarih.value = `${year}-${month}-${day}T${hours}:${minutes}`;
-                }
-            } catch {}
-        } else {
-            setDefaultDate();
-        }
-
-        vazgecBtn.style.display = 'inline-block';
-        editIndexSpan.style.display = 'inline-block';
-        editIndexSpan.textContent = `Düzenleniyor: ${item.siparisNo}`;
-        kaydetBtn.textContent = '🔄 Güncelle';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function guncelle() {
-        if (!editKey) return;
-        
-        const musteri = musteriAdi.value.trim();
-        const siparis = siparisNo.value.trim();
-        if (!musteri || !siparis) {
-            alert('Müşteri Adı ve Sipariş No zorunludur!');
-            return;
-        }
-
-        const data = {
-            musteri: musteri,
-            siparisNo: siparis,
-            platform: platform.value,
-            urun: urunAdi.value.trim(),
-            seri: seriInput.value.trim(),
-            tarih: tarih.value || '',
-            not: not.value.trim(),
-            timestamp: Date.now()
-        };
-
-        guncelleFirebase(editKey, data)
-            .then(() => {
-                formuTemizle();
-            })
-            .catch(err => {
-                alert('Güncelleme hatası: ' + err.message);
-            });
-    }
-
-    // ============================================
-    // OLAY BAĞLAMALARI
-    // ============================================
-    let menuOpen = false;
-    menuToggle.addEventListener('click', function() {
-        menuOpen = !menuOpen;
-        menuBody.classList.toggle('open', menuOpen);
-        menuArrow.classList.toggle('open', menuOpen);
+  // ============================================
+  // FIREBASE — ÜRÜNLER
+  // Her ürün ayrı anahtar altında tutulur; ekleme/silme tek kayıt üzerinden yapılır,
+  // böylece iki cihaz aynı anda değişiklik yapınca birbirinin listesini ezmez.
+  // ============================================
+  function urunleriFirebaseYukle(){
+    if (!database) return;
+    if (urunRef) urunRef.off();
+    urunRef = database.ref('urunler');
+    urunRef.on('value', snap => {
+      const data = snap.val() || {};
+      urunMap = {};
+      Object.keys(data).forEach(k => { if (typeof data[k] === 'string' && data[k].trim()) urunMap[k] = data[k].trim(); });
+      urunler = [...new Set(Object.values(urunMap))].sort((a, b) => a.localeCompare(b, 'tr'));
+      urunleriGoster();
+      updateSyncBadge('synced');
+    }, err => {
+      console.error('Ürünler yüklenirken hata:', err);
+      updateSyncBadge('error');
     });
+  }
 
-    urunEkleBtn.addEventListener('click', function() {
-        const ad = yeniUrunAdi.value.trim();
-        if (urunEkle(ad)) {
-            yeniUrunAdi.value = '';
-        }
-    });
-    
-    yeniUrunAdi.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') urunEkleBtn.click();
-    });
+  function withBadge(promise, okMsg){
+    updateSyncBadge('syncing');
+    return promise.then(() => { updateSyncBadge('synced'); if (okMsg) toast(okMsg); })
+                  .catch(err => { updateSyncBadge('error'); toast('Firebase hatası: ' + err.message, 'err', 4000); throw err; });
+  }
 
-    syncBtn.addEventListener('click', function() {
-        urunleriFirebaseKaydet();
-    });
+  // Tüm listeyi yeniden yaz (tekrarlananları temizler) — "Senkron" butonu
+  function urunleriFirebaseKaydet(){
+    if (!requireDb()) return;
+    syncBtn.disabled = true;
+    const updates = {};
+    urunler.forEach((u, i) => { updates[`urun_${Date.now()}_${i}`] = u; });
+    withBadge(database.ref('urunler').set(updates), `${urunler.length} ürün senkronlandı`)
+      .catch(() => {}).finally(() => { syncBtn.disabled = false; });
+  }
 
-    resetBtn.addEventListener('click', urunleriSifirla);
+  function urunEkle(ad){
+    ad = (ad || '').trim();
+    if (!ad){ toast('Lütfen ürün adını girin'); return false; }
+    if (urunler.some(u => lower(u) === lower(ad))){ toast('Bu ürün zaten listede var'); return false; }
+    if (!requireDb()) return false;
+    withBadge(database.ref('urunler').push(ad), `"${ad}" eklendi`).catch(() => {});
+    return true;
+  }
+  function urunSil(ad){
+    if (!requireDb()) return;
+    if (!confirm(`"${ad}" ürününü silmek istediğinize emin misiniz?`)) return;
+    const keys = Object.keys(urunMap).filter(k => urunMap[k] === ad);
+    const updates = {}; keys.forEach(k => updates[k] = null);
+    withBadge(database.ref('urunler').update(updates), `"${ad}" silindi`).catch(() => {});
+  }
+  function urunleriSifirla(){
+    if (!requireDb()) return;
+    if (confirm('Tüm ürünleri silmek istediğinize emin misiniz? Bu işlem geri alınamaz!') &&
+        confirm('Tekrar emin misiniz? Tüm ürünler kalıcı olarak silinecek!')){
+      withBadge(database.ref('urunler').remove(), 'Tüm ürünler silindi').catch(() => {});
+    }
+  }
 
-    urunAdi.addEventListener('input', function(e) {
-        autoCompleteSearch(this, urunAutocompleteList, urunler);
+  function urunleriGoster(){
+    const f = lower($('urunFiltre').value.trim());
+    const list = f ? urunler.filter(u => lower(u).includes(f)) : urunler;
+    urunCount.textContent = `${urunler.length} ürün`;
+    urunListesi.textContent = '';
+    if (!list.length){
+      urunListesi.innerHTML = `<span class="prod-empty">${urunler.length ? 'Eşleşen ürün yok' : 'Henüz ürün eklenmemiş'}</span>`;
+      return;
+    }
+    const current = urunAdi.value.trim();
+    list.forEach(u => {
+      const chip = document.createElement('span');
+      chip.className = 'urun-item' + (u === current ? ' active' : '');
+      chip.title = 'Ürün adına ekle';
+      const label = document.createElement('span'); label.textContent = u;
+      const x = document.createElement('button'); x.className = 'x'; x.type = 'button'; x.title = 'Sil'; x.textContent = '×';
+      x.addEventListener('click', e => { e.stopPropagation(); urunSil(u); });
+      chip.addEventListener('click', () => { urunAdi.value = u; urunAdi.focus(); closeAc(); urunleriGoster(); });
+      chip.append(label, x);
+      urunListesi.appendChild(chip);
     });
-    urunAdi.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (urunAutocompleteList.classList.contains('active')) {
-                const firstItem = urunAutocompleteList.querySelector('.autocomplete-item');
-                if (firstItem) { firstItem.click(); return; }
-            }
-        }
-        if (e.key === 'Escape') urunAutocompleteList.classList.remove('active');
-    });
-    urunAdi.addEventListener('blur', function() {
-        setTimeout(() => { urunAutocompleteList.classList.remove('active'); }, 200);
-    });
+  }
 
-    seriInput.addEventListener('input', function(e) {
-        autoCompleteSearch(this, seriAutocompleteList, urunler);
+  // ============================================
+  // OTOMATİK TAMAMLAMA (klavye ile gezinme)
+  // ============================================
+  const acList = $('urunAutocompleteList');
+  let acSel = -1;
+  function closeAc(){ acList.classList.remove('active'); acSel = -1; }
+  function autoCompleteSearch(){
+    const q = urunAdi.value.trim();
+    if (!q){ closeAc(); return; }
+    const ql = lower(q);
+    const results = urunler.filter(u => lower(u).includes(ql)).slice(0, 30);
+    if (!results.length || (results.length === 1 && results[0] === q)){ closeAc(); return; }
+    acList.textContent = ''; acSel = -1;
+    results.forEach(u => {
+      const div = document.createElement('div');
+      div.className = 'ac-item';
+      const i = lower(u).indexOf(ql);
+      div.append(u.slice(0, i));
+      const m = document.createElement('mark'); m.textContent = u.slice(i, i + q.length); div.append(m, u.slice(i + q.length));
+      div.addEventListener('mousedown', e => { e.preventDefault(); urunAdi.value = u; closeAc(); urunleriGoster(); });
+      acList.appendChild(div);
     });
-    seriInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (seriAutocompleteList.classList.contains('active')) {
-                const firstItem = seriAutocompleteList.querySelector('.autocomplete-item');
-                if (firstItem) { firstItem.click(); return; }
-            }
-        }
-        if (e.key === 'Escape') seriAutocompleteList.classList.remove('active');
-    });
-    seriInput.addEventListener('blur', function() {
-        setTimeout(() => { seriAutocompleteList.classList.remove('active'); }, 200);
-    });
+    acList.classList.add('active');
+  }
+  function acMove(d){
+    const items = acList.querySelectorAll('.ac-item');
+    if (!items.length) return;
+    acSel = (acSel + d + items.length) % items.length;
+    items.forEach((it, i) => it.classList.toggle('sel', i === acSel));
+    items[acSel].scrollIntoView({ block: 'nearest' });
+  }
 
-    kaydetBtn.addEventListener('click', function() {
-        if (editMode) { guncelle(); } else { yeniKayit(); }
-    });
+  // ============================================
+  // BARKOD / QR OKUYUCU
+  // ============================================
+  let html5Scanner = null, isScanning = false, currentMethod = 'auto', scanHandled = false, autoUseTimer = null;
+  const scanModal = $('scanModal'), scanStatus = $('scanStatus'), scanResult = $('scanResult'), scanResultEdit = $('scanResultEdit');
 
-    vazgecBtn.addEventListener('click', function() {
-        formuTemizle();
-        listeyiGoster();
-    });
+  function scanFormats(){
+    if (typeof Html5QrcodeSupportedFormats === 'undefined' || currentMethod === 'auto') return undefined;
+    const F = Html5QrcodeSupportedFormats;
+    return currentMethod === 'qr'
+      ? [F.QR_CODE]
+      : [F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.ITF, F.CODABAR];
+  }
+  function getScannerConfig(){
+    return {
+      fps: 15,
+      aspectRatio: currentMethod === 'barcode' ? 4/3 : 1.0,
+      qrbox: (w, h) => currentMethod === 'barcode'
+        ? { width: Math.floor(w * .86), height: Math.floor(Math.min(h, w) * .38) }
+        : (s => ({ width: s, height: s }))(Math.floor(Math.min(w, h) * .72))
+    };
+  }
+  function setScanStatus(text, cls = ''){ scanStatus.textContent = text; scanStatus.className = 'scan-status' + (cls ? ' ' + cls : ''); }
 
-    aramaInput.addEventListener('input', aramaYap);
+  async function startScanner(){
+    if (isScanning) return;
+    if (typeof Html5Qrcode === 'undefined'){ setScanStatus('Kamera kütüphanesi yüklenemedi — internet bağlantısını kontrol edin.', 'error'); return; }
+    setScanStatus('Kameraya erişim sağlanıyor…');
+    $('scanner-container').innerHTML = '';
+    scanHandled = false;
+    try {
+      const opts = { verbose: false, experimentalFeatures: { useBarCodeDetectorIfSupported: true } };
+      const f = scanFormats(); if (f) opts.formatsToSupport = f;
+      html5Scanner = new Html5Qrcode('scanner-container', opts);
+      isScanning = true;
+      await html5Scanner.start({ facingMode: 'environment' }, getScannerConfig(), onScanSuccess, () => {});
+      setScanStatus(`${currentMethod === 'qr' ? 'QR kodu' : currentMethod === 'barcode' ? 'Barkodu' : 'Barkod veya QR kodu'} çerçeveye getirin…`);
+    } catch (err){
+      console.error('Scanner başlatma hatası:', err);
+      setScanStatus('Kamera başlatılamadı: ' + (err && err.message ? err.message : err), 'error');
+      isScanning = false;
+    }
+  }
+  function onScanSuccess(decodedText){
+    if (scanHandled) return;               // aynı kod art arda tekrar okunmasın
+    scanHandled = true;
+    try { html5Scanner.pause(true); } catch(e){}
+    beep();
+    setScanStatus('Okundu!', 'success');
+    scanResultEdit.value = decodedText;
+    scanResult.classList.add('active');
+    // 1 sn sonra otomatik kullan — kullanıcı düzeltmeye başlarsa iptal
+    const bar = $('autoBar'); bar.classList.remove('run'); void bar.offsetWidth; bar.classList.add('run');
+    clearTimeout(autoUseTimer);
+    autoUseTimer = setTimeout(useScanResult, 1000);
+  }
+  function cancelAutoUse(){ clearTimeout(autoUseTimer); $('autoBar').classList.remove('run'); }
+  async function stopScanner(){
+    cancelAutoUse();
+    if (html5Scanner && isScanning){
+      try { await html5Scanner.stop(); } catch(e){}
+      try { html5Scanner.clear(); } catch(e){}
+    }
+    isScanning = false;
+    $('scanner-container').innerHTML = '';
+  }
+  function openScanModal(){
+    scanModal.classList.add('active');
+    scanResult.classList.remove('active');
+    ['auto','qr','barcode'].forEach(m => $('method' + ({auto:'Auto',qr:'QR',barcode:'Barcode'})[m]).classList.toggle('active', currentMethod === m));
+    startScanner();
+  }
+  function closeScanModal(){
+    stopScanner();
+    scanModal.classList.remove('active');
+    scanResult.classList.remove('active');
+  }
+  function useScanResult(){
+    const val = scanResultEdit.value.trim();
+    if (!val){ toast('Lütfen geçerli bir değer girin'); return; }
+    seriInput.value = val;
+    closeScanModal();
+    checkSeriDuplicate();
+    seriInput.focus();
+    toast('Seri numarası alındı: ' + val);
+  }
+  function retryScan(){
+    cancelAutoUse();
+    scanResult.classList.remove('active');
+    scanHandled = false;
+    try { html5Scanner.resume(); setScanStatus('Yeniden deneyin…'); } catch(e){ stopScanner().then(startScanner); }
+  }
+  function changeMethod(method){
+    if (currentMethod === method) return;
+    currentMethod = method;
+    ['auto','qr','barcode'].forEach(m => $('method' + ({auto:'Auto',qr:'QR',barcode:'Barcode'})[m]).classList.toggle('active', m === method));
+    scanResult.classList.remove('active');
+    stopScanner().then(() => setTimeout(startScanner, 200));
+  }
 
-    temizleBtn.addEventListener('click', function() {
-        aramaInput.value = '';
-        listeyiGoster(siparisler);
-    });
-
-    yenileBtn.addEventListener('click', function() {
-        verileriYukle();
-    });
-
-    scanBtn.addEventListener('click', openScanModal);
-    scanCloseBtn.addEventListener('click', closeScanModal);
-    scanUseBtn.addEventListener('click', useScanResult);
-    scanRetryBtn.addEventListener('click', function() {
-        scanResult.classList.remove('active');
-        scanStatus.textContent = '📷 Yeniden deneyin...';
-        scanStatus.className = 'scan-status';
-        lastScanResult = '';
-    });
-    
-    scanModal.addEventListener('click', function(e) {
-        if (e.target === this) closeScanModal();
-    });
-
-    methodAuto.addEventListener('click', function() { changeMethod('auto'); });
-    methodQR.addEventListener('click', function() { changeMethod('qr'); });
-    methodBarcode.addEventListener('click', function() { changeMethod('barcode'); });
-
-    // ============================================
-    // BAŞLANGIÇ
-    // ============================================
+  // ============================================
+  // FORM
+  // ============================================
+  function ensurePlatformOption(v){
+    if (v && ![...platform.options].some(o => o.value === v)){
+      const o = document.createElement('option'); o.value = v; o.textContent = v; platform.appendChild(o);
+    }
+  }
+  function formuTemizle(){
+    musteriAdi.value = ''; siparisNo.value = ''; platform.value = 'Makerpazar.com';
+    urunAdi.value = ''; seriInput.value = ''; not.value = '';
     setDefaultDate();
-    formuTemizle();
-    verileriYukle();
-    urunleriFirebaseYukle();
+    editMode = false; editKey = null;
+    vazgecBtn.style.display = 'none';
+    editIndexSpan.classList.remove('show');
+    $('kaydetText').textContent = 'Kaydet';
+    $('formTitle').textContent = 'Yeni Kayıt';
+    $('formCard').classList.remove('editing');
+    $('seriWarn').classList.remove('show');
+    closeAc();
+    urunleriGoster();
+    listeyiGoster();
+  }
+  function checkSeriDuplicate(){
+    const v = lower(seriInput.value.trim());
+    const dup = v && siparisler.find(s => s.key !== editKey && lower(s.seri) === v);
+    const w = $('seriWarn');
+    w.textContent = dup ? `Bu seri numarası zaten kayıtlı: ${dup.siparisNo} · ${dup.musteri}` : '';
+    w.classList.toggle('show', !!dup);
+    return dup;
+  }
+  function formData(){
+    return {
+      musteri: musteriAdi.value.trim(),
+      siparisNo: siparisNo.value.trim(),
+      platform: platform.value,
+      urun: urunAdi.value.trim(),
+      seri: seriInput.value.trim(),
+      tarih: tarih.value || '',
+      not: not.value.trim(),
+      timestamp: Date.now()
+    };
+  }
+  function validate(d){
+    if (!d.musteri || !d.siparisNo){
+      toast('Müşteri Adı ve Sipariş No zorunludur', 'err');
+      (!d.musteri ? musteriAdi : siparisNo).focus();
+      return false;
+    }
+    const dup = checkSeriDuplicate();
+    if (dup && !confirm(`"${d.seri}" seri numarası ${dup.siparisNo} siparişinde zaten kayıtlı. Yine de kaydedilsin mi?`)) return false;
+    return true;
+  }
 
-    console.log('✅ Firebase Sipariş Takip Sistemi Başlatıldı!');
-    console.log('📦 Ürünler Firebase Realtime Database\'de saklanıyor!');
-    console.log('📊 Barkod/QR okuyucu aktif!');
-    console.log('🔢 Her ürüne SADECE 1 seri numarası eklenebilir!');
-    console.log('🔄 Eski seriListesi verileri otomatik dönüştürülüyor!');
-    console.log('🔄 Tüm cihazlar arası senkronizasyon aktif!');
+  // ============================================
+  // FIREBASE — SİPARİŞLER
+  // ============================================
+  function verileriYukle(){
+    if (!database){
+      setSync('off', 'Firebase yüklenemedi');
+      tableBody.innerHTML = '<tr class="empty-row"><td colspan="8">Firebase yüklenemedi. İnternet bağlantınızı kontrol edip sayfayı yenileyin.</td></tr>';
+      return;
+    }
+    if (siparisRef) siparisRef.off();          // "Yenile" ile dinleyici çoğalmasın
+    siparisRef = database.ref('siparisler');
+    siparisRef.on('value', snap => {
+      const data = snap.val();
+      siparisler = [];
+      if (data){
+        Object.keys(data).forEach(key => {
+          const item = data[key] || {};
+          // Eski veri formatını (seriListesi) yeni formata (seri) dönüştür
+          let seri = '';
+          if (item.seri) seri = item.seri;
+          else if (Array.isArray(item.seriListesi) && item.seriListesi.length) seri = item.seriListesi[0] || '';
+          siparisler.push({
+            key, musteri: item.musteri || '', siparisNo: item.siparisNo || '', platform: item.platform || '',
+            urun: item.urun || '', seri: String(seri), tarih: item.tarih || '', not: item.not || ''
+          });
+        });
+      }
+      platformFiltreDoldur();
+      listeyiGoster();
+      if (seriInput.value) checkSeriDuplicate();
+    }, err => {
+      console.error('Veri yükleme hatası:', err);
+      setSync('off', 'Bağlantı hatası');
+      tableBody.innerHTML = `<tr class="empty-row"><td colspan="8">Veri yüklenemedi: ${esc(err.message)}</td></tr>`;
+    });
+  }
+  const kaydetFirebase = data => database.ref('siparisler').push().set(data);
+  const guncelleFirebase = (key, data) => database.ref(`siparisler/${key}`).update(data);
+  const silFirebase = key => database.ref(`siparisler/${key}`).remove();
+
+  // ============================================
+  // LİSTELEME
+  // ============================================
+  function filtrelenmis(){
+    const terim = lower(aramaInput.value.trim());
+    const pf = $('platformFiltre').value;
+    let list = siparisler.filter(s => (!pf || s.platform === pf) &&
+      (!terim || [s.musteri, s.siparisNo, s.urun, s.seri].some(v => lower(v).includes(terim))));
+    list.sort((a, b) => {
+      if (sortKey === 'tarih') return (new Date(a.tarih || 0) - new Date(b.tarih || 0)) * sortDir;
+      return String(a[sortKey]).localeCompare(String(b[sortKey]), 'tr', { numeric: true }) * sortDir;
+    });
+    return list;
+  }
+  const IC = {
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/></svg>',
+    del:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>'
+  };
+  function listeyiGoster(){
+    const liste = filtrelenmis();
+    const filtered = liste.length !== siparisler.length;
+    kayitSayisi.textContent = filtered ? `${liste.length} / ${siparisler.length} kayıt` : `Toplam: ${siparisler.length} kayıt`;
+    if (!liste.length){
+      tableBody.innerHTML = `<tr class="empty-row"><td colspan="8">${siparisler.length ? 'Aramaya uygun kayıt bulunamadı' : 'Henüz kayıt yok'}</td></tr>`;
+      return;
+    }
+    const dash = '<span class="dash">—</span>';
+    tableBody.innerHTML = liste.map(item => `
+      <tr class="${item.key === editKey ? 'editing-row' : ''}">
+        <td class="musteri" data-label="Müşteri">${esc(item.musteri) || dash}</td>
+        <td class="sno" data-label="Sipariş No">${esc(item.siparisNo) || dash}</td>
+        <td data-label="Platform">${item.platform ? `<span class="badge">${esc(item.platform === 'Mağza' ? 'Mağaza' : item.platform)}</span>` : dash}</td>
+        <td data-label="Ürün">${esc(item.urun) || dash}</td>
+        <td data-label="Seri No">${item.seri ? `<span class="badge badge-seri" data-copy="${esc(item.seri)}" title="Kopyala">${esc(item.seri)}</span>` : dash}</td>
+        <td data-label="Tarih">${item.tarih ? `<span class="badge badge-tarih">${esc(formatDateForDisplay(item.tarih))}</span>` : dash}</td>
+        <td class="note" data-label="Not" title="${esc(item.not)}">${esc(item.not) || dash}</td>
+        <td class="acts"><div class="actions">
+          <button class="icon-btn" data-act="edit" data-key="${esc(item.key)}" title="Düzenle">${IC.edit}</button>
+          <button class="icon-btn del" data-act="del" data-key="${esc(item.key)}" title="Sil">${IC.del}</button>
+        </div></td>
+      </tr>`).join('');
+  }
+  function platformFiltreDoldur(){
+    const sel = $('platformFiltre'), cur = sel.value;
+    const counts = {};
+    siparisler.forEach(s => { if (s.platform) counts[s.platform] = (counts[s.platform] || 0) + 1; });
+    sel.innerHTML = `<option value="">Tüm platformlar (${siparisler.length})</option>` +
+      Object.keys(counts).sort((a, b) => a.localeCompare(b, 'tr')).map(p =>
+        `<option value="${esc(p)}">${esc(p === 'Mağza' ? 'Mağaza' : p)} (${counts[p]})</option>`).join('');
+    sel.value = counts[cur] ? cur : '';
+  }
+  function aramaYap(){ listeyiGoster(); }
+
+  // ============================================
+  // CRUD
+  // ============================================
+  function yeniKayit(){
+    if (!requireDb()) return;
+    const d = formData();
+    if (!validate(d)) return;
+    kaydetBtn.disabled = true;
+    kaydetFirebase(d)
+      .then(() => { toast(`✓ ${d.siparisNo} kaydedildi`); formuTemizle(); musteriAdi.focus(); })
+      .catch(err => toast('Kayıt hatası: ' + err.message, 'err', 4000))
+      .finally(() => { kaydetBtn.disabled = false; });
+  }
+  function duzenle(key){
+    const item = siparisler.find(s => s.key === key);
+    if (!item) return;
+    editMode = true; editKey = key;
+    musteriAdi.value = item.musteri; siparisNo.value = item.siparisNo;
+    ensurePlatformOption(item.platform);
+    platform.value = item.platform || 'Makerpazar.com';
+    urunAdi.value = item.urun; seriInput.value = item.seri; not.value = item.not;
+    const d = item.tarih ? new Date(item.tarih) : null;
+    if (d && !isNaN(d)) tarih.value = toLocalInput(d); else setDefaultDate();
+    vazgecBtn.style.display = 'inline-flex';
+    editIndexSpan.textContent = `Düzenleniyor: ${item.siparisNo}`;
+    editIndexSpan.classList.add('show');
+    $('kaydetText').textContent = 'Güncelle';
+    $('formTitle').textContent = 'Kaydı Düzenle';
+    $('formCard').classList.add('editing');
+    checkSeriDuplicate();
+    urunleriGoster();
+    listeyiGoster();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => musteriAdi.focus({ preventScroll: true }), 300);
+  }
+  function guncelle(){
+    if (!editKey || !requireDb()) return;
+    const d = formData();
+    if (!validate(d)) return;
+    kaydetBtn.disabled = true;
+    guncelleFirebase(editKey, d)
+      .then(() => { toast(`✓ ${d.siparisNo} güncellendi`); formuTemizle(); })
+      .catch(err => toast('Güncelleme hatası: ' + err.message, 'err', 4000))
+      .finally(() => { kaydetBtn.disabled = false; });
+  }
+  function sil(key){
+    if (!requireDb()) return;
+    const item = siparisler.find(s => s.key === key);
+    if (!confirm(`${item ? item.siparisNo + ' · ' + item.musteri + '\n\n' : ''}Bu kaydı silmek istediğinize emin misiniz?`)) return;
+    silFirebase(key)
+      .then(() => { toast('Kayıt silindi'); if (key === editKey) formuTemizle(); })
+      .catch(err => toast('Silme hatası: ' + err.message, 'err', 4000));
+  }
+
+  // CSV (Excel uyumlu: ; ayraç + UTF-8 BOM)
+  function csvIndir(){
+    const liste = filtrelenmis();
+    if (!liste.length){ toast('İndirilecek kayıt yok'); return; }
+    const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = [['Müşteri','Sipariş No','Platform','Ürün','Seri No','Tarih','Not'].map(cell).join(';')]
+      .concat(liste.map(s => [s.musteri, s.siparisNo, s.platform === 'Mağza' ? 'Mağaza' : s.platform, s.urun, s.seri, formatDateForDisplay(s.tarih), s.not].map(cell).join(';')));
+    const blob = new Blob(['﻿' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `siparis_seri_${toLocalInput(new Date()).slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast(`${liste.length} kayıt CSV olarak indirildi`);
+  }
+
+  // ============================================
+  // OLAYLAR
+  // ============================================
+  let menuOpen = window.matchMedia('(min-width: 981px)').matches;
+  function setMenu(open){ menuOpen = open; $('menuBody').classList.toggle('open', open); $('menuArrow').classList.toggle('open', open); }
+  setMenu(menuOpen);
+  $('menuToggle').addEventListener('click', () => setMenu(!menuOpen));
+
+  $('urunEkleBtn').addEventListener('click', () => { if (urunEkle(yeniUrunAdi.value)) yeniUrunAdi.value = ''; });
+  yeniUrunAdi.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); $('urunEkleBtn').click(); } });
+  $('urunFiltre').addEventListener('input', urunleriGoster);
+  syncBtn.addEventListener('click', urunleriFirebaseKaydet);
+  $('resetBtn').addEventListener('click', urunleriSifirla);
+
+  urunAdi.addEventListener('input', () => { autoCompleteSearch(); urunleriGoster(); });
+  urunAdi.addEventListener('keydown', e => {
+    const open = acList.classList.contains('active');
+    if (e.key === 'ArrowDown' && open){ e.preventDefault(); acMove(1); }
+    else if (e.key === 'ArrowUp' && open){ e.preventDefault(); acMove(-1); }
+    else if (e.key === 'Enter' && open){
+      e.preventDefault();
+      const items = acList.querySelectorAll('.ac-item');
+      const it = items[acSel >= 0 ? acSel : 0];
+      if (it) it.dispatchEvent(new MouseEvent('mousedown'));
+    }
+    else if (e.key === 'Escape') closeAc();
+  });
+  urunAdi.addEventListener('blur', () => setTimeout(closeAc, 150));
+
+  // El tipi okuyucular Enter gönderir: formu göndermesin, sonraki alana geçsin
+  seriInput.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); checkSeriDuplicate(); not.focus(); } });
+  seriInput.addEventListener('input', checkSeriDuplicate);
+
+  kaydetBtn.addEventListener('click', () => editMode ? guncelle() : yeniKayit());
+  vazgecBtn.addEventListener('click', formuTemizle);
+
+  aramaInput.addEventListener('input', aramaYap);
+  $('temizleBtn').addEventListener('click', () => { aramaInput.value = ''; $('platformFiltre').value = ''; listeyiGoster(); aramaInput.focus(); });
+  $('platformFiltre').addEventListener('change', listeyiGoster);
+  $('yenileBtn').addEventListener('click', () => { verileriYukle(); urunleriFirebaseYukle(); toast('Veriler yenilendi'); });
+  $('csvBtn').addEventListener('click', csvIndir);
+
+  document.querySelectorAll('th.sortable').forEach(th => th.addEventListener('click', () => {
+    const k = th.dataset.sort;
+    sortDir = sortKey === k ? -sortDir : 1; sortKey = k;
+    document.querySelectorAll('th.sortable').forEach(t => {
+      t.classList.toggle('sorted', t === th);
+      t.querySelector('.s').textContent = t === th ? (sortDir === 1 ? '↑' : '↓') : '↕';
+    });
+    listeyiGoster();
+  }));
+
+  tableBody.addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]');
+    if (b){ b.dataset.act === 'edit' ? duzenle(b.dataset.key) : sil(b.dataset.key); return; }
+    const c = e.target.closest('[data-copy]');
+    if (c){
+      const v = c.dataset.copy;
+      (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject())
+        .then(() => toast('Kopyalandı: ' + v)).catch(() => toast('Kopyalanamadı'));
+    }
+  });
+
+  $('scanBtn').addEventListener('click', openScanModal);
+  $('scanCloseBtn').addEventListener('click', closeScanModal);
+  $('scanUseBtn').addEventListener('click', () => { cancelAutoUse(); useScanResult(); });
+  $('scanRetryBtn').addEventListener('click', retryScan);
+  scanResultEdit.addEventListener('focus', cancelAutoUse);
+  scanResultEdit.addEventListener('input', cancelAutoUse);
+  scanResultEdit.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); useScanResult(); } });
+  scanModal.addEventListener('click', e => { if (e.target === scanModal) closeScanModal(); });
+  $('methodAuto').addEventListener('click', () => changeMethod('auto'));
+  $('methodQR').addEventListener('click', () => changeMethod('qr'));
+  $('methodBarcode').addEventListener('click', () => changeMethod('barcode'));
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape'){
+      if (scanModal.classList.contains('active')) closeScanModal();
+      else if (editMode) formuTemizle();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); kaydetBtn.click(); }
+  });
+
+  // ============================================
+  // BAŞLANGIÇ
+  // ============================================
+  setDefaultDate();
+  if (database){
+    database.ref('.info/connected').on('value', s => s.val() === true ? setSync('ok', 'Senkronize') : setSync('off', 'Bağlantı yok'));
+  }
+  verileriYukle();
+  urunleriFirebaseYukle();
 </script>
 </body>
 </html>
